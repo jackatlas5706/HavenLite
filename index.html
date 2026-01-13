@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Haven - Fantasy MMORPG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    </head>
+    
+<body class="p-4">
+    <!-- Auth Container -->
+    <div id="authContainer" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 modal-overlay">
+        <div class="auth-form">
+            <h2>⚔️ HAVEN</h2>
+            <div id="loginForm">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUsername" placeholder="Enter username" autocomplete="username" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter password" autocomplete="current-password" />
+                </div>
+                <div id="loginError" class="error-message hidden"></div>
+                <button class="btn-primary w-full mb-4" id="loginBtn">Login</button>
+                <p class="text-center text-gray-400">
+                    Don't have account?
+                    <span class="text-yellow-500 cursor-pointer hover:text-yellow-300 transition font-bold" onclick="toggleAuthForm()">Register</span>
+                </p>
+            </div>
+            <div id="registerForm" class="hidden">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="registerUsername" placeholder="Choose username" autocomplete="username" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="registerPassword" placeholder="Choose password" autocomplete="new-password" />
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="registerConfirm" placeholder="Confirm password" autocomplete="new-password" />
+                </div>
+                <div id="registerError" class="error-message hidden"></div>
+                <button class="btn-primary w-full mb-4" id="registerBtn">Register</button>
+                <p class="text-center text-gray-400">
+                    Have account?
+                    <span class="text-yellow-500 cursor-pointer hover:text-yellow-300 transition font-bold" onclick="toggleAuthForm()">Login</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Character Selection -->
+    <div id="charSelectContainer" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 hidden modal-overlay">
+        <div class="auth-form">
+            <h2>Select Character</h2>
+            <div id="charGrid" class="grid grid-cols-2 gap-4 mb-6 max-h-96 overflow-y-auto scrollbar-custom"></div>
+            <button class="btn-primary w-full mb-2" id="createCharBtn">+ Create New Character</button>
+            <button class="btn-danger w-full" id="logoutBtn">Logout</button>
+        </div>
+    </div>
+
+    <!-- Main Game with Sidebar Navigation -->
+<div id="gameContainer" class="hidden max-w-7xl mx-auto relative z-10 flex min-h-[80vh] rounded-lg overflow-hidden game-container">
+  <!-- Sidebar -->
+  <nav class="bg-gradient-to-b from-[rgba(35,20,10,0.95)] to-[rgba(45,25,15,0.95)] border-r-2 border-r-[#8b5a2b] w-60 flex flex-col p-4 space-y-4 text-yellow-400 text-sm font-semibold shadow-lg">
+    <h1 class="text-3xl font-black text-yellow-400 mb-4 glowing-text select-none">⚔️ HAVEN</h1>
+    <button class="tab-button sidebar-tab active text-left w-full" data-tab="home" onclick="switchTab('home')">🏠 Home</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="adventure" onclick="switchTab('adventure')">⚔️ Adventure</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="pvp" onclick="switchTab('pvp')">🗡️ PvP Arena</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="dungeon" onclick="switchTab('dungeon')">🏰 Dungeon</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="training" onclick="switchTab('training')">💪 Training</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="market" onclick="switchTab('market')">🏪 Market</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="inventory" onclick="switchTab('inventory')">🎒 Inventory</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="quests" onclick="switchTab('quests')">📜 Quests</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="stats" onclick="switchTab('stats')">📊 Stats</button>
+    <button class="tab-button sidebar-tab text-left w-full" data-tab="account" onclick="switchTab('account')">⚙️ Account</button>
+    <button class="btn-danger mt-auto w-full" id="logoutGameBtn">Logout</button>
+  </nav>
+
+  <!-- Content -->
+  <div class="flex-1 p-6 space-y-4 overflow-auto scrollbar-custom relative">
+    <!-- Top Bar -->
+    <div class="top-bar flex justify-between items-center flex-wrap gap-4 mb-4 rounded-md shadow-inner border-gray-700 border p-4">
+      <div>
+        <p class="text-yellow-400 font-bold" id="charInfo">Loading...</p>
+      </div>
+      <div class="text-gray-300 font-mono font-semibold" id="currentTime"></div>
+    </div>
+
+    <!-- Resources -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 text-sm mb-6">
+      <div class="resource-item">
+        <div class="text-gray-400 text-xs font-bold">LEVEL</div>
+        <div class="text-yellow-400 font-black text-xl mt-1" id="playerLevel">1</div>
+      </div>
+      <div class="resource-item">
+        <div class="text-gray-400 text-xs font-bold">GOLD</div>
+        <div class="text-yellow-500 font-black text-xl mt-1" id="playerGold">1000</div>
+      </div>
+      <div class="resource-item">
+        <div class="text-gray-400 text-xs font-bold">HEALTH</div>
+        <div class="text-red-400 font-bold text-sm mt-1"><span id="playerHP">100</span>/<span id="maxHP">100</span></div>
+        <div class="stat-bar"><div id="hpBar" class="stat-fill health-fill" style="width: 100%"></div></div>
+      </div>
+      <div class="resource-item">
+        <div class="text-gray-400 text-xs font-bold">ENERGY</div>
+        <div class="text-blue-300 font-bold text-sm mt-1"><span id="playerEnergy">100</span>/<span id="maxEnergy">100</span></div>
+        <div class="stat-bar"><div id="energyBar" class="stat-fill energy-fill" style="width: 100%"></div></div>
+      </div>
+      <div class="resource-item">
+        <div class="text-gray-400 text-xs font-bold">GLORY</div>
+        <div class="text-yellow-300 font-bold text-sm mt-1"><span id="playerGlory">100</span>/<span id="maxGlory">100</span></div>
+        <div class="stat-bar"><div id="gloryBar" class="stat-fill glory-fill" style="width: 100%"></div></div>
+      </div>
+      <div class="resource-item cursor-pointer" id="playerMeritsContainer">
+        <div class="text-gray-400 text-xs font-bold">MERITS</div>
+        <div class="text-green-400 font-black text-xl mt-1" id="playerMerits">50</div>
+      </div>
+      <div class="resource-item cursor-pointer" id="playerJewelsContainer" onclick="showJewelShop()">
+  <div class="text-gray-400 text-xs font-bold">JEWELS</div>
+  <div class="text-purple-400 font-black text-xl mt-1" id="playerJewels">0</div>
+</div>
+
+    </div>
+
+        <!-- Content Area -->
+        <div class="space-y-4" id="tabContents">
+            <!-- Home Tab -->
+            <div id="homeTab" class="tab-content">
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="content-panel">
+                        <h2>📋 Character Info</h2>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-300">Name:</span>
+                                <span id="charName" class="text-yellow-400 font-bold">Adventurer</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-300">Race:</span>
+                                <span id="charRace" class="text-yellow-400 font-bold">Human</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-300">Class:</span>
+                                <span id="charClass" class="text-yellow-400 font-bold">Warrior</span>
+                            </div>
+                            <div class="mt-4">
+                                <span class="text-gray-400 text-xs">Experience Progress</span>
+                                <div class="text-sm font-bold text-yellow-300 mt-1"><span id="charExp">0</span>/<span id="expNext">500</span> EXP</div>
+                                <div class="stat-bar mt-2"><div id="expBar" class="stat-fill exp-fill" style="width: 0%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="content-panel">
+                        <h2>⚡ Battle Stats</h2>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="stat-box">
+                                <div class="text-gray-400 text-xs font-bold">STR</div>
+                                <div class="text-lg font-black text-red-400 mt-2" id="statStr">15</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="text-gray-400 text-xs font-bold">DEF</div>
+                                <div class="text-lg font-black text-blue-400 mt-2" id="statDef">12</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="text-gray-400 text-xs font-bold">SPD</div>
+                                <div class="text-lg font-black text-yellow-400 mt-2" id="statSpd">10</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="text-gray-400 text-xs font-bold">EVA</div>
+                                <div class="text-lg font-black text-green-400 mt-2" id="statEva">8</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="content-panel">
+                        <h2>🎯 Quick Actions</h2>
+                        <div class="space-y-2">
+                            <button class="btn-primary w-full text-sm" id="quickCombatBtn" onclick="switchTab('adventure')">⚔️ Start Combat</button>
+                            <button class="btn-primary w-full text-sm" id="quickRestBtn" onclick="restNow()">😴 Rest Now</button>
+                            <button class="btn-success w-full text-sm" id="quickTrainBtn" onclick="switchTab('training')">💪 Quick Train</button>
+                            <button class="btn-primary w-full text-sm" onclick="switchTab('pvp')">🗡️ PvP Battle</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Purchased items container for Home tab -->
+                <div id="purchasedItems" class="content-panel mt-6">
+                    <h2>📦 Purchased Items</h2>
+                    <div class="text-gray-400 text-sm">No items purchased yet</div>
+                </div>
+            </div>
+
+            <!-- Adventure Tab -->
+            <div id="adventureTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>⚔️ Adventure</h2>
+                    <p class="text-gray-400 mb-6 font-semibold">Choose your adventure path and test your skills!</p>
+                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                        <button class="btn-primary w-full combat-action-btn" id="combatBtn" onclick="startCombat()">
+                            <div class="text-sm font-bold">⚔️ Combat</div>
+                            <div class="text-xs text-gray-200">15 Energy</div>
+                        </button>
+                        <button class="btn-primary w-full combat-action-btn" id="questBtn" onclick="startQuest()">
+                            <div class="text-sm font-bold">📜 Quest</div>
+                            <div class="text-xs text-gray-200">25 Energy</div>
+                        </button>
+                        <button class="btn-primary w-full combat-action-btn" onclick="switchTab('pvp')">
+                            <div class="text-sm font-bold">🗡️ PvP Arena</div>
+                            <div class="text-xs text-gray-200">25 Energy</div>
+                        </button>
+                    </div>
+
+                    <div id="combatArea" class="hidden">
+                        <div class="combat-arena">
+                            <h3 class="text-center mb-6 text-xl font-black text-yellow-400 glowing-text">⚔️ COMBAT ARENA</h3>
+                            <div class="grid md:grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <div class="text-center text-yellow-500 font-black mb-3">YOU</div>
+                                    <div class="bg-gray-950 p-4 rounded-lg border-2 border-blue-900">
+                                        <div class="text-sm mb-3 font-bold">Health: <span id="playerCombatHP" class="text-red-400">100</span>/<span id="playerCombatMaxHP" class="text-gray-400">100</span></div>
+                                        <div class="stat-bar"><div id="playerCombatHPBar" class="stat-fill health-fill" style="width: 100%"></div></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-center text-red-500 font-black mb-3" id="enemyName">Enemy</div>
+                                    <div class="enemy-card">
+                                        <div class="text-sm mb-3 font-bold">Health: <span id="enemyHP" class="text-red-400">80</span>/<span id="enemyMaxHP" class="text-gray-400">80</span></div>
+                                        <div class="stat-bar"><div id="enemyHPBar" class="stat-fill health-fill" style="width: 100%"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid md:grid-cols-3 gap-3 mb-6">
+                                <button class="btn-primary combat-action-btn" id="attackBtn" onclick="playerAttack()">⚔️ Attack</button>
+                                <button class="btn-primary combat-action-btn" id="defendBtn" onclick="playerDefend()">🛡️ Defend</button>
+                                <button class="btn-primary combat-action-btn" id="skillBtn" onclick="playerSkill()">✨ Skill</button>
+                            </div>
+
+                            <div class="combat-log scrollbar-custom" id="combatLog">
+                                <div class="log-message info">Combat started! Choose your action.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PvP Arena Tab -->
+            <div id="pvpTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>🗡️ PvP Arena</h2>
+                    <p class="text-gray-400 mb-6 font-semibold">Challenge other players and climb the ranks!</p>
+                    <div id="pvpOpponents" class="space-y-3 mb-6">
+                        <div class="opponent-card" onclick="challengeOpponent('Player1', 15)">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-yellow-400">Player1</span>
+                                <span class="pvp-rank">Rank: Gold</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-2">Level 25 • Wins: 45</div>
+                        </div>
+                        <div class="opponent-card" onclick="challengeOpponent('Player2', 18)">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-yellow-400">Player2</span>
+                                <span class="pvp-rank">Rank: Silver</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-2">Level 22 • Wins: 32</div>
+                        </div>
+                        <div class="opponent-card" onclick="challengeOpponent('Player3', 20)">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-yellow-400">Player3</span>
+                                <span class="pvp-rank">Rank: Bronze</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-2">Level 20 • Wins: 18</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dungeon Tab -->
+            <div id="dungeonTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>🏰 Dungeon</h2>
+                    <p class="text-gray-400 mb-6 font-semibold">Explore dangerous dungeons and find legendary treasures!</p>
+                    <div id="dungeonRooms" class="space-y-3">
+                        <div class="dungeon-room">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-yellow-400">Floor 1: Goblin Warren</span>
+                                <span class="floor-badge">Difficulty: Easy</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-2">Enemies: 5 Goblins | Rewards: 200 Gold, 100 EXP</div>
+                            <button class="btn-success text-xs mt-3" onclick="enterDungeon(1)">Enter</button>
+                        </div>
+                        <div class="dungeon-room">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-yellow-400">Floor 2: Skeleton Crypt</span>
+                                <span class="floor-badge">Difficulty: Medium</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-2">Enemies: 8 Skeletons | Rewards: 400 Gold, 250 EXP</div>
+                            <button class="btn-success text-xs mt-3" onclick="enterDungeon(2)">Enter</button>
+                        </div>
+                        <div class="dungeon-room">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-yellow-400">Floor 3: Dragon's Lair</span>
+                                <span class="floor-badge">Difficulty: Hard</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-2">Enemies: 1 Dragon | Rewards: 1000 Gold, 500 EXP</div>
+                            <button class="btn-success text-xs mt-3" onclick="enterDungeon(3)">Enter</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training Tab -->
+            <div id="trainingTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>💪 Training</h2>
+                    <p class="text-gray-400 mb-6 font-semibold">Improve your stats through intense training!</p>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <button class="btn-primary w-full text-sm" onclick="trainStat('STR')">
+                            <div class="font-bold">💪 Strength Training</div>
+                            <div class="text-xs text-gray-200">Cost: 50 Gold | Gain: +2 STR</div>
+                        </button>
+                        <button class="btn-primary w-full text-sm" onclick="trainStat('DEF')">
+                            <div class="font-bold">🛡️ Defense Training</div>
+                            <div class="text-xs text-gray-200">Cost: 50 Gold | Gain: +2 DEF</div>
+                        </button>
+                        <button class="btn-primary w-full text-sm" onclick="trainStat('SPD')">
+                            <div class="font-bold">⚡ Speed Training</div>
+                            <div class="text-xs text-gray-200">Cost: 50 Gold | Gain: +2 SPD</div>
+                        </button>
+                        <button class="btn-primary w-full text-sm" onclick="trainStat('EVA')">
+                            <div class="font-bold">🎯 Evasion Training</div>
+                            <div class="text-xs text-gray-200">Cost: 50 Gold | Gain: +2 EVA</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Market Tab -->
+            <div id="marketTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>🏪 Market</h2>
+                    <p class="text-gray-400 mb-6 font-semibold">Buy and sell items to enhance your power!</p>
+                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="item-card">
+                            <div class="font-bold text-yellow-400">Iron Sword</div>
+                            <div class="text-xs text-gray-400 mt-2">+5 STR</div>
+                            <div class="text-yellow-500 font-bold mt-2">300 Gold</div>
+                            <button class="btn-success text-xs w-full mt-2" onclick="buyItem('Iron Sword', 300)">Buy</button>
+                        </div>
+                        <div class="item-card">
+                            <div class="font-bold text-yellow-400">Steel Shield</div>
+                            <div class="text-xs text-gray-400 mt-2">+8 DEF</div>
+                            <div class="text-yellow-500 font-bold mt-2">400 Gold</div>
+                            <button class="btn-success text-xs w-full mt-2" onclick="buyItem('Steel Shield', 400)">Buy</button>
+                        </div>
+                        <div class="item-card">
+                            <div class="font-bold text-yellow-400">Speed Boots</div>
+                            <div class="text-xs text-gray-400 mt-2">+6 SPD</div>
+                            <div class="text-yellow-500 font-bold mt-2">350 Gold</div>
+                            <button class="btn-success text-xs w-full mt-2" onclick="buyItem('Speed Boots', 350)">Buy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Tab -->
+            <div id="inventoryTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>🎒 Inventory</h2>
+                    <div id="inventoryList" class="space-y-2 text-sm">
+                        <div class="text-gray-400">Your inventory is empty</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quests Tab -->
+            <div id="questsTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>📜 Quests</h2>
+                    <p class="text-gray-400 mb-6 font-semibold">Complete quests to earn rewards!</p>
+                    <div id="questsList" class="space-y-3">
+                        <div class="quest-card">
+                            <div class="font-bold text-yellow-400">Defeat 10 Goblins</div>
+                            <div class="text-xs text-gray-400 mt-2">Progress: 0/10</div>
+                            <div class="reward-badge mt-3">Reward: 500 Gold + 200 EXP</div>
+                        </div>
+                        <div class="quest-card">
+                            <div class="font-bold text-yellow-400">Reach Level 10</div>
+                            <div class="text-xs text-gray-400 mt-2">Progress: 1/10</div>
+                            <div class="reward-badge mt-3">Reward: 1000 Gold + 500 EXP</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Tab -->
+            <div id="statsTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>📊 Character Statistics</h2>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h3>Core Stats</h3>
+                            <div class="space-y-3 mt-4">
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-gray-300">Strength (STR):</span>
+                                    <span id="statsStr" class="text-red-400 font-bold">15</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-gray-300">Defense (DEF):</span>
+                                    <span id="statsDef" class="text-blue-400 font-bold">12</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-gray-300">Speed (SPD):</span>
+                                    <span id="statsSpd" class="text-yellow-400 font-bold">10</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-gray-300">Evasion (EVA):</span>
+                                    <span id="statsEva" class="text-green-400 font-bold">8</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3>Achievements</h3>
+                            <div class="space-y-2 mt-4 text-sm">
+                                <div class="text-gray-400">🏆 First Steps - Reach Level 5</div>
+                                <div class="text-gray-400">⚔️ Warrior - Win 10 Combats</div>
+                                <div class="text-gray-400">🐉 Dragon Slayer - Defeat Dragon Boss</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Tab -->
+            <div id="accountTab" class="tab-content hidden">
+                <div class="content-panel">
+                    <h2>⚙️ Account Settings</h2>
+                    <div class="space-y-4">
+                        <div class="text-sm">
+                            <span class="text-gray-400">Account Status:</span>
+                            <span class="text-green-400 font-bold ml-2">Active</span>
+                        </div>
+                        <div class="text-sm">
+                            <span class="text-gray-400">Member Since:</span>
+                            <span class="text-yellow-400 font-bold ml-2" id="memberSince">Today</span>
+                        </div>
+                        <button class="btn-danger w-full mt-6" id="deleteCharBtn" onclick="deleteCharacter()">Delete Character</button>
+                        <button class="btn-danger w-full" id="logoutAccBtn" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Merit Shop Modal -->
+    <div id="meritShopBackdrop"></div>
+    <div id="meritShopModal">
+        <button class="btn-danger mb-4" onclick="hideMeritShop()">Close</button>
+        <h2>💚 Merit Shop</h2>
+        <div class="flex justify-between items-center mb-6">
+            <p class="text-gray-400 font-semibold">Spend your merits on powerful upgrades and permanent boosts!</p>
+            <div class="text-2xl font-black text-green-400">💚 <span id="meritShopBalanceModal">50</span></div>
+        </div>
+
+        <!-- Stat Boosts Section -->
+        <h3 class="text-yellow-400 font-bold text-lg mb-4">⚡ Permanent Stat Boosts</h3>
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">💪 Strength Boost</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +3 STR</div>
+                    </div>
+                    <div class="merit-cost">20 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Strength Boost', 20, 'str', 3)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">🛡️ Defense Boost</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +3 DEF</div>
+                    </div>
+                    <div class="merit-cost">20 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Defense Boost', 20, 'def', 3)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">⚡ Speed Boost</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +3 SPD</div>
+                    </div>
+                    <div class="merit-cost">20 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Speed Boost', 20, 'spd', 3)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">🎯 Evasion Boost</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +3 EVA</div>
+                    </div>
+                    <div class="merit-cost">20 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Evasion Boost', 20, 'eva', 3)">Purchase</button>
+            </div>
+        </div>
+
+        <!-- Health & Energy Boosts -->
+        <h3 class="text-yellow-400 font-bold text-lg mb-4">❤️ Health & Energy Boosts</h3>
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">❤️ Max Health Increase</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +20 Max HP</div>
+                    </div>
+                    <div class="merit-cost">25 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Health Increase', 25, 'maxHp', 20)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">⚡ Max Energy Increase</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +20 Max Energy</div>
+                    </div>
+                    <div class="merit-cost">25 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Energy Increase', 25, 'maxEnergy', 20)">Purchase</button>
+            </div>
+        </div>
+
+        <!-- Special Items -->
+        <h3 class="text-yellow-400 font-bold text-lg mb-4">✨ Special Items</h3>
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">💎 Premium Jewel</div>
+                        <div class="text-xs text-gray-400 mt-1">Gain 1 Premium Jewel</div>
+                    </div>
+                    <div class="merit-cost">15 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Premium Jewel', 15, 'jewels', 1)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">🌟 Experience Multiplier</div>
+                        <div class="text-xs text-gray-400 mt-1">+25% EXP for 1 hour</div>
+                    </div>
+                    <div class="merit-cost">30 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('EXP Multiplier', 30, 'expBoost', 1)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">💰 Gold Multiplier</div>
+                        <div class="text-xs text-gray-400 mt-1">+50% Gold for 1 hour</div>
+                    </div>
+                    <div class="merit-cost">35 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Gold Multiplier', 35, 'goldBoost', 1)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">⚔️ Combat Power</div>
+                        <div class="text-xs text-gray-400 mt-1">+2 All Stats for 1 hour</div>
+                    </div>
+                    <div class="merit-cost">40 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Combat Power', 40, 'combatPower', 1)">Purchase</button>
+            </div>
+        </div>
+
+        <!-- Purchased Items -->
+        <h3 class="text-yellow-400 font-bold text-lg mb-4">📦 Your Purchases</h3>
+        <div id="purchasedItemsModal" class="bg-gray-950 border-2 border-gray-800 rounded-lg p-4">
+            <div class="text-gray-400 text-sm">No items purchased yet</div>
+        </div>
+    </div>
+    <!-- Jewel Shop Modal -->
+<div id="jewelShopBackdrop"></div>
+<div id="jewelShopModal">
+    <button class="btn-danger mb-4" onclick="hideJewelShop()">Close</button>
+    <h2>💎 Jewel Shop</h2>
+    <div class="flex justify-between items-center mb-6">
+        <p class="text-gray-400 font-semibold">Spend your jewels on powerful exclusive upgrades!</p>
+        <div class="text-2xl font-black text-purple-400">💎 <span id="jewelShopBalanceModal">0</span></div>
+    </div>
+
+    <h3 class="text-yellow-400 font-bold text-lg mb-4">✨ Exclusive Boosts</h3>
+    <div class="grid md:grid-cols-2 gap-4 mb-8">
+        <div class="merit-shop-item">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <div class="font-bold text-purple-300">🔮 Magic Power</div>
+                    <div class="text-xs text-gray-400 mt-1">Permanently +5 to all stats</div>
+                </div>
+                <div class="merit-cost">10 Jewels</div>
+            </div>
+            <button class="btn-success w-full text-sm" onclick="buyJewelItem('Magic Power', 10, 'allStats', 5)">Purchase</button>
+        </div>
+
+        <div class="merit-shop-item">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <div class="font-bold text-purple-300">🛡️ Shield of Invincibility</div>
+                    <div class="text-xs text-gray-400 mt-1">Reduces damage received by 20%</div>
+                </div>
+                <div class="merit-cost">15 Jewels</div>
+            </div>
+            <button class="btn-success w-full text-sm" onclick="buyJewelItem('Shield of Invincibility', 15, 'damageReduction', 0.2)">Purchase</button>
+        </div>
+
+        <div class="merit-shop-item">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <div class="font-bold text-purple-300">⚡ Speed Surge</div>
+                    <div class="text-xs text-gray-400 mt-1">Permanently +10 SPD and +10 EVA</div>
+                </div>
+                <div class="merit-cost">12 Jewels</div>
+            </div>
+            <button class="btn-success w-full text-sm" onclick="buyJewelItem('Speed Surge', 12, 'spdEva', 10)">Purchase</button>
+        </div>
+
+        <div class="merit-shop-item">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <div class="font-bold text-purple-300">💰 Jewel Fortune</div>
+                    <div class="text-xs text-gray-400 mt-1">Double jewel gain for 2 hours</div>
+                </div>
+                <div class="merit-cost">20 Jewels</div>
+            </div>
+            <button class="btn-success w-full text-sm" onclick="buyJewelItem('Jewel Fortune', 20, 'jewelBoost', 2)">Purchase</button>
+        </div>
+    </div>
+
+    <h3 class="text-yellow-400 font-bold text-lg mb-4">🎁 Your Jewel Purchases</h3>
+    <div id="purchasedJewelItemsModal" class="bg-gray-950 border-2 border-gray-800 rounded-lg p-4">
+        <div class="text-gray-400 text-sm">No items purchased yet</div>
+    </div>
+</div>
+<script src="script.js"></script>.
+</body>
+</html>
