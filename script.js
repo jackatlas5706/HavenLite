@@ -22,6 +22,51 @@ let pvpEnemyMaxHP = 0;
 let pvpEnemyName = "";
 let pvpEnemyLevel = 1;
 
+// New: Define races with stat modifiers and abilities
+const races = {
+  Human: { str: 0, def: 0, spd: 0, eva: 0, ability: "Adaptability" },
+  Elf: { str: -1, def: 0, spd: +3, eva: +2, ability: "Keen Senses" },
+  Dwarf: { str: +3, def: +2, spd: -1, eva: -1, ability: "Stone Endurance" },
+  Orc: { str: +5, def: -1, spd: 0, eva: 0, ability: "Frenzy" },
+};
+
+// New: Define classes with stat modifiers and skills
+const classes = {
+  Warrior: { str: +5, def: +3, spd: 0, eva: 0, skill: "Power Strike" },
+  Mage: { str: 0, def: 0, spd: +2, eva: +1, skill: "Fireball" },
+  Rogue: { str: +2, def: 0, spd: +4, eva: +3, skill: "Backstab" },
+  Paladin: { str: +3, def: +4, spd: 0, eva: 0, skill: "Holy Shield" },
+};
+
+// New: Skill tree structure
+const skillTree = {
+  Warrior: [
+    { id: "power_strike", name: "Power Strike", desc: "Strong melee attack", levelReq: 1, unlocked: true },
+    { id: "berserk", name: "Berserk", desc: "Increase attack speed", levelReq: 5, unlocked: false, prerequisites: ["power_strike"] },
+  ],
+  Mage: [
+    { id: "fireball", name: "Fireball", desc: "Cast fireball spell", levelReq: 1, unlocked: true },
+    { id: "ice_shield", name: "Ice Shield", desc: "Temporary defense boost", levelReq: 4, unlocked: false, prerequisites: ["fireball"] },
+  ],
+  Rogue: [
+    { id: "backstab", name: "Backstab", desc: "High damage from behind", levelReq: 1, unlocked: true },
+    { id: "vanish", name: "Vanish", desc: "Become invisible for short time", levelReq: 6, unlocked: false, prerequisites: ["backstab"] },
+  ],
+  Paladin: [
+    { id: "holy_shield", name: "Holy Shield", desc: "Block damage and reflect", levelReq: 1, unlocked: true },
+    { id: "divine_blast", name: "Divine Blast", desc: "Area holy damage", levelReq: 7, unlocked: false, prerequisites: ["holy_shield"] },
+  ],
+};
+
+// New: Equipment definitions with stat bonuses and rarity
+const items = [
+  { name: 'Iron Sword', type: 'weapon', strBonus: 5, rarity: 'common' },
+  { name: 'Elven Bow', type: 'weapon', spdBonus: 7, rarity: 'rare' },
+  { name: 'Dragon Scale Armor', type: 'armor', defBonus: 10, rarity: 'epic' },
+  { name: 'Boots of Swiftness', type: 'boots', spdBonus: 3, evaBonus: 2, rarity: 'uncommon' },
+  { name: 'Steel Shield', type: 'shield', defBonus: 8, rarity: 'common' },
+];
+
 // Sound effects setup (add mp3 files accordingly if possible)
 const sounds = {
   attack: new Audio('attack.mp3'),
@@ -166,14 +211,33 @@ function openCreateChar() {
     return;
   }
 
-  const race = prompt("Choose race (Human/Elf/Dwarf):") || "Human";
-  const charClass = prompt("Choose class (Warrior/Mage/Rogue):") || "Warrior";
-  const appearance = prompt("Choose hair color (e.g. brown, black, *****):") || "brown";
+  // New: Prompt for race, class, appearance with validation fallback
+  const race = prompt("Choose race (Human/Elf/Dwarf/Orc):") || "Human";
+  const isValidRace = Object.keys(races).includes(race);
+  const chosenRace = isValidRace ? race : "Human";
+
+  const charClass = prompt("Choose class (Warrior/Mage/Rogue/Paladin):") || "Warrior";
+  const isValidClass = Object.keys(classes).includes(charClass);
+  const chosenClass = isValidClass ? charClass : "Warrior";
+
+  const appearance = prompt("Choose hair color (e.g. brown, black, blonde):") || "brown";
+
+  // Base stats + race bonus + class bonus
+  const baseStats = { str: 10, def: 10, spd: 10, eva: 10 };
+  const raceMod = races[chosenRace];
+  const classMod = classes[chosenClass];
+
+  const finalStats = {
+    str: baseStats.str + (raceMod.str || 0) + (classMod.str || 0),
+    def: baseStats.def + (raceMod.def || 0) + (classMod.def || 0),
+    spd: baseStats.spd + (raceMod.spd || 0) + (classMod.spd || 0),
+    eva: baseStats.eva + (raceMod.eva || 0) + (classMod.eva || 0),
+  };
 
   gameState.characters[charName] = {
     name: charName,
-    race: race,
-    class: charClass,
+    race: chosenRace,
+    class: chosenClass,
     appearance: appearance,
     level: 1,
     exp: 0,
@@ -186,12 +250,19 @@ function openCreateChar() {
     gold: 1000,
     merits: 50,
     jewels: 0,
-    stats: { str: 15, def: 12, spd: 10, eva: 8 },
+    stats: finalStats,
     mana: 100,
     maxMana: 100,
     skillCooldown: 0,
     inventory: [],
+    equipment: {
+      weapon: null,
+      armor: null,
+      boots: null,
+      shield: null,
+    },
     meritPurchases: [],
+    jewelPurchases: [],
     createdAt: new Date().toLocaleDateString(),
     quests: [
       {
@@ -226,7 +297,49 @@ function openCreateChar() {
         completed: false,
         claimed: false,
       },
+      // New example: Narrative quest with branching
+      {
+        id: 100,
+        name: "A Mysterious Stranger",
+        progress: 0,
+        completed: false,
+        claimed: false,
+        type: "narrative",
+        dialogue: [
+          {
+            text: "A hooded figure beckons you to sit. What do you do?",
+            choices: [
+              { text: "Hear them out", next: 1 },
+              { text: "Walk away", next: 3 },
+            ],
+          },
+          {
+            text: "They offer you a secret mission. Do you accept?",
+            choices: [
+              { text: "Yes", next: null, result: "accept" },
+              { text: "No", next: null, result: "decline" },
+            ],
+          },
+          {
+            text: "You leave the tavern. Quest ends.",
+            choices: [],
+          },
+          {
+            text: "You ignore the stranger and continue your journey.",
+            choices: [],
+          },
+        ],
+        questState: {
+          currentNode: 0,
+          inProgress: false,
+        },
+        rewardGold: 500,
+        rewardExp: 300,
+        rewardItem: "Secret Map",
+        rewardAchievement: "Secret Ally",
+      },
     ],
+    unlockedSkills: [], // track unlocked skills for class advancement
   };
 
   gameState.users[gameState.currentUser].characters = gameState.characters;
@@ -245,9 +358,24 @@ function selectCharacter(charName) {
 function loadCharacterUI() {
   const char = gameState.currentCharacter;
   if (!char) return;
+
+  // Compute effective stats with equipment bonuses
+  const effectiveStats = { ...char.stats };
+  if (char.equipment) {
+    for (const slot in char.equipment) {
+      const eq = char.equipment[slot];
+      if (!eq) continue;
+      if (eq.strBonus) effectiveStats.str += eq.strBonus;
+      if (eq.defBonus) effectiveStats.def += eq.defBonus;
+      if (eq.spdBonus) effectiveStats.spd += eq.spdBonus;
+      if (eq.evaBonus) effectiveStats.eva += eq.evaBonus;
+    }
+  }
+
   document.getElementById(
     "charInfo"
-  ).textContent = `${char.name} • ${char.race} ${char.class} • Hair: ${char.appearance}`;
+  ).textContent = `${char.name} • ${char.race} ${char.class} • Hair: ${char.appearance} • Ability: ${races[char.race]?.ability} • Class Skill: ${classes[char.class]?.skill}`;
+
   document.getElementById("charName").textContent = char.name;
   document.getElementById("charRace").textContent = char.race;
   document.getElementById("charClass").textContent = char.class;
@@ -264,10 +392,13 @@ function loadCharacterUI() {
   document.getElementById("meritShopBalanceModal").textContent = char.merits;
   document.getElementById("charExp").textContent = char.exp;
   document.getElementById("expNext").textContent = char.level * 500;
-  document.getElementById("statStr").textContent = char.stats.str;
-  document.getElementById("statDef").textContent = char.stats.def;
-  document.getElementById("statSpd").textContent = char.stats.spd;
-  document.getElementById("statEva").textContent = char.stats.eva;
+
+  // Show effective stats (with equipment bonuses)
+  document.getElementById("statStr").textContent = effectiveStats.str;
+  document.getElementById("statDef").textContent = effectiveStats.def;
+  document.getElementById("statSpd").textContent = effectiveStats.spd;
+  document.getElementById("statEva").textContent = effectiveStats.eva;
+
   document.getElementById("memberSince").textContent = char.createdAt;
 
   // Update mana display and bar
@@ -280,7 +411,7 @@ function loadCharacterUI() {
     manaBar.style.width = ((char.mana || 0) / (char.maxMana || 1)) * 100 + "%";
   }
 
-  // Update training tab stats display with actual values
+  // Update training tab stats display with actual values and equipment bonuses
   const trainingTab = document.getElementById("trainingTab");
   if (trainingTab) {
     const buttons = trainingTab.querySelectorAll("button");
@@ -293,7 +424,9 @@ function loadCharacterUI() {
       if (statName) {
         const divs = btn.getElementsByTagName("div");
         if (divs.length > 1) {
-          divs[1].textContent = `Cost: 50 Gold | Gain: +2 ${statName.toUpperCase()}\nCurrent: ${char.stats[statName]}`;
+          divs[1].textContent = `Cost: 50 Gold | Gain: +2 ${statName.toUpperCase()}\nCurrent: ${
+            effectiveStats[statName]
+          }`;
         }
       }
     });
@@ -313,6 +446,16 @@ function loadCharacterUI() {
       .map((item) => `<div>${item.name} x${item.qty}</div>`)
       .join("");
   }
+
+  // Update equipped gear display in Inventory tab (optional enhancement, add UI)
+  renderEquipmentUI();
+}
+
+// New: Show equipped gear info somewhere in inventory or stats tab (basic console log or later UI update)
+function renderEquipmentUI() {
+  // For brevity, no DOM elements detailed here.
+  // Could create an equipment panel in inventory with equip/unequip buttons
+  // Implement later if needed
 }
 
 // Merit Shop UI functions
@@ -514,7 +657,7 @@ function endTurnBasedCombat(win) {
     char.exp += rewardExp;
 
     // Add quest progress for quest id 1 ("Defeat 10 Goblins") on combat win
-    const goblinQuest = char.quests.find(q => q.id === 1 && !q.completed);
+    const goblinQuest = char.quests.find((q) => q.id === 1 && !q.completed);
     if (goblinQuest) {
       goblinQuest.progress = Math.min(goblinQuest.progress + 1, goblinQuest.goal);
       if (goblinQuest.progress >= goblinQuest.goal) {
@@ -550,15 +693,16 @@ function playerAttack() {
   const char = gameState.currentCharacter;
   const enemy = gameState.combatEnemy;
 
-  // Damage calculation: random + strength
-  const damage = Math.floor(Math.random() * 20) + char.stats.str;
+  // Damage calculation: random + strength (effective stat with equipment)
+  const effectiveStr = getEffectiveStat("str");
+  const damage = Math.floor(Math.random() * 20) + effectiveStr;
 
   enemy.hp = Math.max(0, enemy.hp - damage);
 
   addCombatLog(`You attack for ${damage} damage!`, "success");
   updateTurnBasedCombatUI();
 
-  playSound('attack');
+  playSound("attack");
 
   if (enemy.hp <= 0) {
     endTurnBasedCombat(true);
@@ -586,7 +730,7 @@ function playerDefend() {
   addCombatLog("You take a defensive stance!", "info");
   gameState.turnBasedCombat.defending = true;
 
-  playSound('defend');
+  playSound("defend");
 
   gameState.turnBasedCombat.playerTurn = false;
   updateCombatButtons(false);
@@ -617,8 +761,9 @@ function playerSkill() {
   char.mana -= 20;
   char.skillCooldown = 3; // cooldown length in turns
 
-  // Skill does higher damage: random + 1.5 * strength
-  const damage = Math.floor(Math.random() * 35) + Math.floor(1.5 * char.stats.str);
+  // Skill does higher damage: random + 1.5 * effective strength
+  const effectiveStr = getEffectiveStat("str");
+  const damage = Math.floor(Math.random() * 35) + Math.floor(1.5 * effectiveStr);
 
   enemy.hp = Math.max(0, enemy.hp - damage);
 
@@ -626,7 +771,7 @@ function playerSkill() {
   updateTurnBasedCombatUI();
   updateManaUI();
 
-  playSound('skill');
+  playSound("skill");
 
   if (enemy.hp <= 0) {
     endTurnBasedCombat(true);
@@ -659,7 +804,7 @@ function decreaseCooldowns() {
     char.skillCooldown--;
     if (char.skillCooldown <= 0) {
       // Enable skill button after cooldown
-      document.getElementById('skillBtn').disabled = false;
+      document.getElementById("skillBtn").disabled = false;
     }
   }
 }
@@ -739,6 +884,18 @@ function startQuest() {
     return;
   }
 
+  // Handle branching narrative quests differently
+  if (activeQuest.type === "narrative") {
+    activeQuest.questState.inProgress = true;
+    activeQuest.questState.currentNode = 0;
+    showNarrativeQuestDialog(activeQuest);
+    char.energy -= 25;
+    saveCharacterData();
+    loadCharacterUI();
+    questInProgress = true;
+    return;
+  }
+
   // Consume energy upfront
   char.energy -= 25;
   saveCharacterData();
@@ -756,6 +913,118 @@ function startQuest() {
   }, 2000);
 }
 
+// New: Show narrative quest dialogue modal with branching choices
+function showNarrativeQuestDialog(quest) {
+  // Create modal elements if not exist
+  let modal = document.getElementById("questDialogueModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "questDialogueModal";
+    modal.className = "fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-60";
+    modal.innerHTML = `
+      <div class="bg-gray-900 text-yellow-300 p-6 rounded-lg max-w-lg w-full">
+        <p id="dialogueText" class="mb-4"></p>
+        <div id="dialogueChoices" class="space-y-2"></div>
+        <button id="closeQuestDialogBtn" class="mt-4 btn-danger">Cancel</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById("closeQuestDialogBtn").addEventListener("click", () => {
+      closeNarrativeQuestDialog(quest);
+    });
+  }
+
+  // Show modal
+  modal.classList.remove("hidden");
+  showDialogueNode(quest);
+}
+
+function showDialogueNode(quest) {
+  const modal = document.getElementById("questDialogueModal");
+  const textElem = document.getElementById("dialogueText");
+  const choicesElem = document.getElementById("dialogueChoices");
+  const state = quest.questState;
+
+  const node = quest.dialogue[state.currentNode];
+  textElem.textContent = node.text;
+  choicesElem.innerHTML = "";
+
+  if (node.choices.length === 0) {
+    // end node
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "Close";
+    closeBtn.className = "btn-primary w-full";
+    closeBtn.onclick = () => closeNarrativeQuestDialog(quest);
+    choicesElem.appendChild(closeBtn);
+  } else {
+    node.choices.forEach((choice, idx) => {
+      const btn = document.createElement("button");
+      btn.textContent = choice.text;
+      btn.className = "btn-primary w-full";
+      btn.onclick = () => {
+        if (choice.next !== null && choice.next !== undefined) {
+          state.currentNode = choice.next;
+          showDialogueNode(quest);
+        } else if(choice.result === "accept") {
+          applyNarrativeQuestRewards(quest);
+          quest.completed = true;
+          quest.claimed = false;
+          state.inProgress = false;
+          questInProgress = false;
+          showNotification(`Quest "${quest.name}" completed! Claim your reward.`);
+          closeNarrativeQuestDialog(quest);
+          renderQuests();
+          saveCharacterData();
+        } else if (choice.result === "decline") {
+          state.inProgress = false;
+          questInProgress = false;
+          closeNarrativeQuestDialog(quest);
+          showNotification(`You declined the quest: "${quest.name}".`);
+          renderQuests();
+          saveCharacterData();
+        } else {
+          closeNarrativeQuestDialog(quest);
+        }
+      };
+      choicesElem.appendChild(btn);
+    });
+  }
+}
+
+function closeNarrativeQuestDialog(quest) {
+  const modal = document.getElementById("questDialogueModal");
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+  questInProgress = false;
+  saveCharacterData();
+}
+
+// Give narrative quest special rewards: items, achievements, gold, etc.
+function applyNarrativeQuestRewards(quest) {
+  const char = gameState.currentCharacter;
+  if (!char) return;
+
+  char.gold += quest.rewardGold || 0;
+  char.exp += quest.rewardExp || 0;
+
+  if (quest.rewardItem) {
+    let inventoryItem = char.inventory.find((i) => i.name === quest.rewardItem);
+    if (inventoryItem) {
+      inventoryItem.qty++;
+    } else {
+      char.inventory.push({ name: quest.rewardItem, qty: 1 });
+    }
+  }
+
+  // Add achievement (just as new meritPurchase entry for demo)
+  if (quest.rewardAchievement) {
+    if (!char.meritPurchases) char.meritPurchases = [];
+    char.meritPurchases.push({ name: `🏆 Achievement: ${quest.rewardAchievement}`, cost: 0 });
+  }
+}
+
+// Continue legacy quest progression
 function progressQuest(quest) {
   const char = gameState.currentCharacter;
   if (!char) return;
@@ -776,7 +1045,7 @@ function progressQuest(quest) {
     if (quest.progress >= quest.goal) quest.completed = true;
   } else if (quest.type === "collect" && quest.itemsRequired) {
     // Check collect quest progress based on inventory (for example herbs)
-    const herbs = char.inventory.find(i => i.name.toLowerCase() === 'herb');
+    const herbs = char.inventory.find((i) => i.name.toLowerCase() === "herb");
     const qty = herbs ? herbs.qty : 0;
     quest.progress = Math.min(qty, quest.goal);
     if (quest.progress >= quest.goal) quest.completed = true;
@@ -818,11 +1087,16 @@ function renderQuests() {
       if (questInProgress && !q.completed) {
         cancelBtnHtml = `<button class="btn-danger text-xs mt-1" onclick="cancelQuest()">Cancel Quest</button>`;
       }
+      // Include extra narrative quest rewards display
+      let rewardsText = `Reward: ${q.rewardGold || 0} Gold + ${q.rewardExp || 0} EXP`;
+      if (q.rewardItem) rewardsText += ` + Item: ${q.rewardItem}`;
+      if (q.rewardAchievement) rewardsText += ` + Achievement: ${q.rewardAchievement}`;
+
       return `
         <div class="quest-card ${q.completed ? "opacity-50" : ""}">
             <div class="font-bold text-yellow-400">${q.name}</div>
-            <div class="text-xs text-gray-400 mt-2">Progress: ${q.progress}/${q.goal}</div>
-            <div class="reward-badge mt-1 mb-1">Reward: ${q.rewardGold} Gold + ${q.rewardExp} EXP</div>
+            <div class="text-xs text-gray-400 mt-2">Progress: ${q.progress || 0}/${q.goal || "N/A"}</div>
+            <div class="reward-badge mt-1 mb-1">${rewardsText}</div>
             ${
               q.completed
                 ? `<button class="btn-success text-xs mt-1" onclick="claimQuestReward(${q.id})" ${
@@ -854,8 +1128,25 @@ function claimQuestReward(questId) {
     return;
   }
 
-  char.gold += quest.rewardGold;
-  char.exp += quest.rewardExp;
+  char.gold += quest.rewardGold || 0;
+  char.exp += quest.rewardExp || 0;
+
+  // Grant reward item if any
+  if (quest.rewardItem) {
+    let invItem = char.inventory.find((i) => i.name === quest.rewardItem);
+    if (invItem) invItem.qty++;
+    else char.inventory.push({ name: quest.rewardItem, qty: 1 });
+  }
+
+  // Add achievement (bonus) as purchased merit item (if not already added)
+  if (quest.rewardAchievement) {
+    if (!char.meritPurchases) char.meritPurchases = [];
+    const alreadyHas = char.meritPurchases.some((i) => i.name === `🏆 Achievement: ${quest.rewardAchievement}`);
+    if (!alreadyHas) {
+      char.meritPurchases.push({ name: `🏆 Achievement: ${quest.rewardAchievement}`, cost: 0 });
+    }
+  }
+
   quest.claimed = true;
 
   checkLevelUp();
@@ -863,7 +1154,9 @@ function claimQuestReward(questId) {
   renderQuests();
   loadCharacterUI();
 
-  showNotification(`Quest "${quest.name}" reward claimed! +${quest.rewardGold} Gold, +${quest.rewardExp} EXP`);
+  showNotification(
+    `Quest "${quest.name}" reward claimed! +${quest.rewardGold} Gold, +${quest.rewardExp} EXP`
+  );
 }
 
 // PvP battle system against NPC (no changes here for now)
@@ -967,7 +1260,9 @@ function appendPvPLog(message, type = "info") {
 function pvpPlayerAttack() {
   if (!pvpInProgress) return;
   const char = gameState.currentCharacter;
-  let damage = Math.floor(Math.random() * 20) + char.stats.str;
+  // Use effective str with equipment
+  const damage =
+    Math.floor(Math.random() * 20) + getEffectiveStat("str");
   pvpEnemyHP = Math.max(0, pvpEnemyHP - damage);
   appendPvPLog(`You attack for ${damage} damage!`, "success");
   updatePvPBars();
@@ -997,7 +1292,7 @@ function pvpPlayerDefend() {
 function pvpPlayerSkill() {
   if (!pvpInProgress) return;
   const char = gameState.currentCharacter;
-  let damage = Math.floor(Math.random() * 35) + 1.5 * char.stats.str;
+  const damage = Math.floor(Math.random() * 35) + 1.5 * getEffectiveStat("str");
   pvpEnemyHP = Math.max(0, pvpEnemyHP - Math.floor(damage));
   appendPvPLog(`You use skill for ${Math.floor(damage)} damage!`, "success");
   updatePvPBars();
@@ -1036,7 +1331,7 @@ function pvpEndBattle(won) {
     char.exp += rewardExp;
 
     // Progress 'Defeat 10 Goblins' quest if applicable
-    const goblinQuest = char.quests.find(q => q.id === 1 && !q.completed);
+    const goblinQuest = char.quests.find((q) => q.id === 1 && !q.completed);
     if (goblinQuest) {
       goblinQuest.progress = Math.min(goblinQuest.progress + 1, goblinQuest.goal);
       if (goblinQuest.progress >= goblinQuest.goal) {
@@ -1141,7 +1436,7 @@ function buyItem(itemName, price) {
   }
   char.gold -= price;
   // Save as object with quantity for extensibility
-  let invItem = char.inventory.find(i => i.name === itemName);
+  let invItem = char.inventory.find((i) => i.name === itemName);
   if (invItem) {
     invItem.qty++;
   } else {
@@ -1159,10 +1454,10 @@ function checkQuestCollectItems() {
   const char = gameState.currentCharacter;
   if (!char) return;
 
-  const collectQuest = char.quests.find(q => q.type === "collect" && !q.completed);
+  const collectQuest = char.quests.find((q) => q.type === "collect" && !q.completed);
   if (!collectQuest) return;
 
-  const herbs = char.inventory.find(i => i.name.toLowerCase() === 'herb');
+  const herbs = char.inventory.find((i) => i.name.toLowerCase() === "herb");
   const qty = herbs ? herbs.qty : 0;
 
   collectQuest.progress = Math.min(qty, collectQuest.goal);
@@ -1285,15 +1580,14 @@ function checkLevelUp() {
   }
 
   if (leveledUp) {
-    showNotification(
-      `🎉 Level UP! You reached level ${char.level} and earned 30 merits!`
-    );
+    showNotification(`🎉 Level UP! You reached level ${char.level} and earned 30 merits!`);
     renderQuests(); // Update quest UI for level based quest
   }
 
   saveCharacterData();
 }
 
+// Save character data to localStorage
 function saveCharacterData() {
   if (gameState.currentUser && gameState.characters) {
     gameState.users[gameState.currentUser].characters =
@@ -1357,7 +1651,10 @@ function buyJewelItem(itemName, cost, statType, value) {
   }
 
   // Prevent duplicate purchase of same item
-  if (char.jewelPurchases && char.jewelPurchases.some(i => i.name === itemName)) {
+  if (
+    char.jewelPurchases &&
+    char.jewelPurchases.some((i) => i.name === itemName)
+  ) {
     showNotification("You already own this item!");
     return;
   }
@@ -1393,7 +1690,7 @@ function buyJewelItem(itemName, cost, statType, value) {
   saveCharacterData();
 
   // Autosave on page close or refresh
-  window.addEventListener('beforeunload', () => {
+  window.addEventListener("beforeunload", () => {
     saveCharacterData();
   });
 
@@ -1424,7 +1721,40 @@ function addJewels(amount) {
   loadCharacterUI();
 }
 
+// Get effective stat including race, class, and equipment bonuses for combat etc.
+function getEffectiveStat(statKey) {
+  const char = gameState.currentCharacter;
+  if (!char) return 0;
+
+  let baseValue = (char.stats && char.stats[statKey]) || 0;
+
+  // Add equipment bonuses
+  if (char.equipment) {
+    for (const slot in char.equipment) {
+      const eq = char.equipment[slot];
+      if (!eq) continue;
+      // Map stat bonuses to statKey
+      switch (statKey) {
+        case "str":
+          if (eq.strBonus) baseValue += eq.strBonus;
+          break;
+        case "def":
+          if (eq.defBonus) baseValue += eq.defBonus;
+          break;
+        case "spd":
+          if (eq.spdBonus) baseValue += eq.spdBonus;
+          break;
+        case "eva":
+          if (eq.evaBonus) baseValue += eq.evaBonus;
+          break;
+      }
+    }
+  }
+
+  return baseValue;
+}
+
 // Autosave on page close or refresh - general
-window.addEventListener('beforeunload', () => {
+window.addEventListener("beforeunload", () => {
   saveCharacterData();
 });
