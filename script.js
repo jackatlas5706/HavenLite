@@ -22,6 +22,21 @@ let pvpEnemyMaxHP = 0;
 let pvpEnemyName = "";
 let pvpEnemyLevel = 1;
 
+// Sound effects setup (add mp3 files accordingly if possible)
+const sounds = {
+  attack: new Audio('attack.mp3'),
+  defend: new Audio('defend.mp3'),
+  skill: new Audio('skill.mp3'),
+};
+
+function playSound(action) {
+  const sound = sounds[action];
+  if (sound) {
+    sound.currentTime = 0;
+    sound.play();
+  }
+}
+
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
@@ -153,11 +168,13 @@ function openCreateChar() {
 
   const race = prompt("Choose race (Human/Elf/Dwarf):") || "Human";
   const charClass = prompt("Choose class (Warrior/Mage/Rogue):") || "Warrior";
+  const appearance = prompt("Choose hair color (e.g. brown, black, *****):") || "brown";
 
   gameState.characters[charName] = {
     name: charName,
     race: race,
     class: charClass,
+    appearance: appearance,
     level: 1,
     exp: 0,
     hp: 100,
@@ -170,6 +187,9 @@ function openCreateChar() {
     merits: 50,
     jewels: 0,
     stats: { str: 15, def: 12, spd: 10, eva: 8 },
+    mana: 100,
+    maxMana: 100,
+    skillCooldown: 0,
     inventory: [],
     meritPurchases: [],
     createdAt: new Date().toLocaleDateString(),
@@ -194,6 +214,18 @@ function openCreateChar() {
         completed: false,
         claimed: false,
       },
+      {
+        id: 3,
+        name: "Collect 5 Herbs",
+        type: "collect",
+        itemsRequired: { herb: 5 },
+        progress: 0,
+        goal: 5,
+        rewardGold: 300,
+        rewardExp: 150,
+        completed: false,
+        claimed: false,
+      },
     ],
   };
 
@@ -213,7 +245,9 @@ function selectCharacter(charName) {
 function loadCharacterUI() {
   const char = gameState.currentCharacter;
   if (!char) return;
-  document.getElementById("charInfo").textContent = `${char.name} • ${char.race} ${char.class}`;
+  document.getElementById(
+    "charInfo"
+  ).textContent = `${char.name} • ${char.race} ${char.class} • Hair: ${char.appearance}`;
   document.getElementById("charName").textContent = char.name;
   document.getElementById("charRace").textContent = char.race;
   document.getElementById("charClass").textContent = char.class;
@@ -235,6 +269,16 @@ function loadCharacterUI() {
   document.getElementById("statSpd").textContent = char.stats.spd;
   document.getElementById("statEva").textContent = char.stats.eva;
   document.getElementById("memberSince").textContent = char.createdAt;
+
+  // Update mana display and bar
+  const manaElem = document.getElementById("playerMana");
+  const maxManaElem = document.getElementById("maxMana");
+  const manaBar = document.getElementById("manaBar");
+  if (manaElem && maxManaElem && manaBar) {
+    manaElem.textContent = char.mana || 0;
+    maxManaElem.textContent = char.maxMana || 0;
+    manaBar.style.width = ((char.mana || 0) / (char.maxMana || 1)) * 100 + "%";
+  }
 
   // Update training tab stats display with actual values
   const trainingTab = document.getElementById("trainingTab");
@@ -265,7 +309,9 @@ function loadCharacterUI() {
   if (char.inventory.length === 0) {
     inventoryList.innerHTML = '<div class="text-gray-400">Your inventory is empty</div>';
   } else {
-    inventoryList.innerHTML = char.inventory.map((item) => `<div>${item}</div>`).join("");
+    inventoryList.innerHTML = char.inventory
+      .map((item) => `<div>${item.name} x${item.qty}</div>`)
+      .join("");
   }
 }
 
@@ -368,6 +414,8 @@ function updateBars() {
     (char.glory / char.maxGlory) * 100 + "%";
   document.getElementById("expBar").style.width =
     (char.exp / (char.level * 500)) * 100 + "%";
+
+  // Mana bar update done in loadCharacterUI()
 }
 
 function switchTab(tabName) {
@@ -510,6 +558,8 @@ function playerAttack() {
   addCombatLog(`You attack for ${damage} damage!`, "success");
   updateTurnBasedCombatUI();
 
+  playSound('attack');
+
   if (enemy.hp <= 0) {
     endTurnBasedCombat(true);
     return;
@@ -536,6 +586,8 @@ function playerDefend() {
   addCombatLog("You take a defensive stance!", "info");
   gameState.turnBasedCombat.defending = true;
 
+  playSound('defend');
+
   gameState.turnBasedCombat.playerTurn = false;
   updateCombatButtons(false);
 
@@ -553,6 +605,18 @@ function playerSkill() {
   const char = gameState.currentCharacter;
   const enemy = gameState.combatEnemy;
 
+  if (char.mana < 20) {
+    showNotification("Not enough mana!");
+    return;
+  }
+  if (char.skillCooldown > 0) {
+    showNotification(`Skill cooldown: ${char.skillCooldown} turn(s) remaining`);
+    return;
+  }
+
+  char.mana -= 20;
+  char.skillCooldown = 3; // cooldown length in turns
+
   // Skill does higher damage: random + 1.5 * strength
   const damage = Math.floor(Math.random() * 35) + Math.floor(1.5 * char.stats.str);
 
@@ -560,6 +624,9 @@ function playerSkill() {
 
   addCombatLog(`You use special skill for ${damage} damage!`, "success");
   updateTurnBasedCombatUI();
+  updateManaUI();
+
+  playSound('skill');
 
   if (enemy.hp <= 0) {
     endTurnBasedCombat(true);
@@ -571,6 +638,30 @@ function playerSkill() {
   updateCombatButtons(false);
 
   setTimeout(enemyTurn, 1000);
+}
+
+function updateManaUI() {
+  const char = gameState.currentCharacter;
+  if (!char) return;
+  const manaElem = document.getElementById("playerMana");
+  const maxManaElem = document.getElementById("maxMana");
+  const manaBar = document.getElementById("manaBar");
+  if (manaElem && maxManaElem && manaBar) {
+    manaElem.textContent = char.mana;
+    maxManaElem.textContent = char.maxMana;
+    manaBar.style.width = (char.mana / char.maxMana) * 100 + "%";
+  }
+}
+
+function decreaseCooldowns() {
+  const char = gameState.currentCharacter;
+  if (char && char.skillCooldown > 0) {
+    char.skillCooldown--;
+    if (char.skillCooldown <= 0) {
+      // Enable skill button after cooldown
+      document.getElementById('skillBtn').disabled = false;
+    }
+  }
 }
 
 // Enemy turn function
@@ -599,6 +690,7 @@ function enemyTurn() {
 
   addCombatLog(`Enemy attacks for ${damage} damage!`, "danger");
   updateTurnBasedCombatUI();
+  updateManaUI();
 
   if (char.hp <= 0) {
     endTurnBasedCombat(false);
@@ -609,6 +701,10 @@ function enemyTurn() {
   gameState.turnBasedCombat.playerTurn = true;
   updateCombatButtons(true);
   addCombatLog("Your turn.", "info");
+
+  // Decrease skill cooldown turn counter
+  decreaseCooldowns();
+  saveCharacterData();
 }
 
 // Add one line in the combat log area with style
@@ -677,6 +773,12 @@ function progressQuest(quest) {
   } else if (quest.id === 2) {
     // Level 10 quest: tied to character level
     quest.progress = char.level;
+    if (quest.progress >= quest.goal) quest.completed = true;
+  } else if (quest.type === "collect" && quest.itemsRequired) {
+    // Check collect quest progress based on inventory (for example herbs)
+    const herbs = char.inventory.find(i => i.name.toLowerCase() === 'herb');
+    const qty = herbs ? herbs.qty : 0;
+    quest.progress = Math.min(qty, quest.goal);
     if (quest.progress >= quest.goal) quest.completed = true;
   } else {
     quest.progress = Math.min(quest.progress + 1, quest.goal);
@@ -764,7 +866,7 @@ function claimQuestReward(questId) {
   showNotification(`Quest "${quest.name}" reward claimed! +${quest.rewardGold} Gold, +${quest.rewardExp} EXP`);
 }
 
-// PvP battle system against NPC
+// PvP battle system against NPC (no changes here for now)
 function challengeOpponent(name, level) {
   if (pvpInProgress) {
     showNotification("Finish current PvP battle first!");
@@ -1038,10 +1140,39 @@ function buyItem(itemName, price) {
     return;
   }
   char.gold -= price;
-  char.inventory.push(itemName);
+  // Save as object with quantity for extensibility
+  let invItem = char.inventory.find(i => i.name === itemName);
+  if (invItem) {
+    invItem.qty++;
+  } else {
+    char.inventory.push({ name: itemName, qty: 1 });
+  }
   saveCharacterData();
   loadCharacterUI();
   showNotification(`Bought ${itemName}!`);
+
+  // Check collect quests update after buying items
+  checkQuestCollectItems();
+}
+
+function checkQuestCollectItems() {
+  const char = gameState.currentCharacter;
+  if (!char) return;
+
+  const collectQuest = char.quests.find(q => q.type === "collect" && !q.completed);
+  if (!collectQuest) return;
+
+  const herbs = char.inventory.find(i => i.name.toLowerCase() === 'herb');
+  const qty = herbs ? herbs.qty : 0;
+
+  collectQuest.progress = Math.min(qty, collectQuest.goal);
+  if (collectQuest.progress >= collectQuest.goal) {
+    collectQuest.completed = true;
+    showNotification(`Quest "${collectQuest.name}" completed! Claim your reward.`);
+  }
+
+  renderQuests();
+  saveCharacterData();
 }
 
 function restNow() {
@@ -1260,6 +1391,12 @@ function buyJewelItem(itemName, cost, statType, value) {
   }
 
   saveCharacterData();
+
+  // Autosave on page close or refresh
+  window.addEventListener('beforeunload', () => {
+    saveCharacterData();
+  });
+
   loadCharacterUI();
   updateJewelPurchasesModal();
 
@@ -1286,3 +1423,8 @@ function addJewels(amount) {
   saveCharacterData();
   loadCharacterUI();
 }
+
+// Autosave on page close or refresh - general
+window.addEventListener('beforeunload', () => {
+  saveCharacterData();
+});
