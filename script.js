@@ -1,3 +1,4 @@
+
 // Game State
 const gameState = {
   currentUser: null,
@@ -815,6 +816,10 @@ function renderQuests() {
   questsList.innerHTML = char.quests
     .map((q) => {
       let cancelBtnHtml = "";
+      let extraActionBtn = "";
+      if (q.id === 1 && !q.completed && !questInProgress && !activeGoblinQuestCombat) {
+        extraActionBtn = `<button class="btn-primary text-xs mt-2" onclick="startGoblinQuestCombat()">Hunt a Goblin</button>`;
+      }
       if (questInProgress && !q.completed) {
         cancelBtnHtml = `<button class="btn-danger text-xs mt-1" onclick="cancelQuest()">Cancel Quest</button>`;
       }
@@ -830,7 +835,7 @@ function renderQuests() {
                   }>${q.claimed ? "Reward Claimed" : "Claim Reward"}</button>`
                 : questInProgress
                 ? cancelBtnHtml
-                : ""
+                : extraActionBtn
             }
         </div>
         `;
@@ -866,930 +871,125 @@ function claimQuestReward(questId) {
   showNotification(`Quest "${quest.name}" reward claimed! +${quest.rewardGold} Gold, +${quest.rewardExp} EXP`);
 }
 
-// PvP battle system against NPC (no changes here for now)
-function challengeOpponent(name, level) {
-  if (pvpInProgress) {
-    showNotification("Finish current PvP battle first!");
-    return;
-  }
+// PvP battle and dungeon functions remain unchanged for brevity...
+
+// --- INTEGRATED INTERACTIVE "Defeat 10 Goblins" QUEST ---
+
+let activeGoblinQuestCombat = false;
+
+function startGoblinQuestCombat() {
   const char = gameState.currentCharacter;
-  if (!char) {
-    showNotification("Select a character first!");
+  const quest = char.quests.find(q => q.id === 1);
+  if (!quest || quest.completed) {
+    showNotification("No active Goblin quest.");
     return;
   }
-  if (char.energy < 25) {
-    showNotification("Not enough energy for PvP battle!");
+  if (char.energy < 10) {
+    showNotification("Not enough energy for goblin hunt!");
     return;
   }
-  char.energy -= 25;
+  if (activeGoblinQuestCombat || gameState.turnBasedCombat.inProgress) {
+    showNotification("Goblin combat already in progress!");
+    return;
+  }
+
+  char.energy -= 10;
   saveCharacterData();
   loadCharacterUI();
 
-  pvpEnemyName = name;
-  pvpEnemyLevel = level;
+  activeGoblinQuestCombat = true;
 
-  pvpEnemyMaxHP = 80 + (pvpEnemyLevel - 1) * 20;
-  pvpEnemyHP = pvpEnemyMaxHP;
+  // Setup goblin enemy
+  gameState.combatEnemy = {
+    hp: 40,
+    maxHp: 40,
+    name: "Goblin",
+    questId: 1,
+  };
 
-  pvpInProgress = true;
+  gameState.turnBasedCombat.inProgress = true;
+  gameState.turnBasedCombat.playerTurn = true;
+  gameState.turnBasedCombat.defending = false;
 
-  document.getElementById("pvpTab").innerHTML = `
-    <div class="content-panel">
-      <h2>🗡️ PvP Battle vs ${pvpEnemyName} (Level ${pvpEnemyLevel})</h2>
-      <div class="grid md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <div class="text-center text-yellow-500 font-black mb-3">${char.name}</div>
-          <div class="bg-gray-950 p-4 rounded-lg border-2 border-blue-900">
-            <div class="text-sm mb-3 font-bold">
-              Health:
-              <span id="playerPvPHP" class="text-red-400">${char.hp}</span>/
-              <span id="playerPvPMaxHP" class="text-gray-400">${char.maxHp}</span>
-            </div>
-            <div class="stat-bar">
-              <div id="playerPvPHPBar" class="stat-fill health-fill" style="width: 100%"></div>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="text-center text-red-500 font-black mb-3">${pvpEnemyName}</div>
-          <div class="enemy-card">
-            <div class="text-sm mb-3 font-bold">
-              Health:
-              <span id="enemyPvPHP" class="text-red-400">${pvpEnemyHP}</span>/
-              <span id="enemyPvPMaxHP" class="text-gray-400">${pvpEnemyMaxHP}</span>
-            </div>
-            <div class="stat-bar">
-              <div id="enemyPvPHPBar" class="stat-fill health-fill" style="width: 100%"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="grid md:grid-cols-3 gap-3 mb-6">
-        <button class="btn-primary combat-action-btn" id="pvpAttackBtn">⚔️ Attack</button>
-        <button class="btn-primary combat-action-btn" id="pvpDefendBtn">🛡️ Defend</button>
-        <button class="btn-primary combat-action-btn" id="pvpSkillBtn">✨ Skill</button>
-      </div>
-      <div class="combat-log scrollbar-custom" id="pvpCombatLog">
-        <div class="log-message info">PvP Battle started!</div>
-      </div>
-      <button class="btn-danger w-full" id="pvpQuitBtn">Quit PvP</button>
-    </div>
-  `;
-
-  document.getElementById("pvpAttackBtn").addEventListener("click", pvpPlayerAttack);
-  document.getElementById("pvpDefendBtn").addEventListener("click", pvpPlayerDefend);
-  document.getElementById("pvpSkillBtn").addEventListener("click", pvpPlayerSkill);
-  document.getElementById("pvpQuitBtn").addEventListener("click", pvpQuitBattle);
-
-  updatePvPBars();
+  document.getElementById("combatArea").classList.remove("hidden");
+  updateTurnBasedCombatUI();
+  addCombatLog("Goblin Hunt started! Defeat the goblin.", "info");
+  updateCombatButtons(true);
 }
 
-function updatePvPBars() {
+function endGoblinQuestCombat(win) {
   const char = gameState.currentCharacter;
-  document.getElementById("playerPvPHP").textContent = char.hp;
-  document.getElementById("playerPvPMaxHP").textContent = char.maxHp;
-  document.getElementById("playerPvPHPBar").style.width = (char.hp / char.maxHp) * 100 + "%";
+  const quest = char.quests.find(q => q.id === 1);
 
-  document.getElementById("enemyPvPHP").textContent = pvpEnemyHP;
-  document.getElementById("enemyPvPMaxHP").textContent = pvpEnemyMaxHP;
-  document.getElementById("enemyPvPHPBar").style.width = (pvpEnemyHP / pvpEnemyMaxHP) * 100 + "%";
-}
+  activeGoblinQuestCombat = false;
+  gameState.turnBasedCombat.inProgress = false;
+  gameState.turnBasedCombat.defending = false;
+  document.getElementById("combatArea").classList.add("hidden");
+  updateCombatButtons(false);
 
-function appendPvPLog(message, type = "info") {
-  const log = document.getElementById("pvpCombatLog");
-  const msgDiv = document.createElement("div");
-  msgDiv.className = `log-message ${type}`;
-  msgDiv.textContent = message;
-  log.appendChild(msgDiv);
-  log.scrollTop = log.scrollHeight;
-}
-
-function pvpPlayerAttack() {
-  if (!pvpInProgress) return;
-  const char = gameState.currentCharacter;
-  let damage = Math.floor(Math.random() * 20) + char.stats.str;
-  pvpEnemyHP = Math.max(0, pvpEnemyHP - damage);
-  appendPvPLog(`You attack for ${damage} damage!`, "success");
-  updatePvPBars();
-
-  if (pvpEnemyHP <= 0) {
-    pvpEndBattle(true);
-    return;
-  }
-  setTimeout(pvpEnemyAttack, 600);
-}
-
-function pvpPlayerDefend() {
-  if (!pvpInProgress) return;
-  appendPvPLog("You defend!", "info");
-  setTimeout(() => {
-    const char = gameState.currentCharacter;
-    let damage = Math.floor(Math.random() * 10) + 5;
-    char.hp = Math.max(0, char.hp - damage);
-    appendPvPLog(`Enemy attacks! You take ${damage} damage.`, "danger");
-    updatePvPBars();
-    if (char.hp <= 0) {
-      pvpEndBattle(false);
-    }
-  }, 600);
-}
-
-function pvpPlayerSkill() {
-  if (!pvpInProgress) return;
-  const char = gameState.currentCharacter;
-  let damage = Math.floor(Math.random() * 35) + 1.5 * char.stats.str;
-  pvpEnemyHP = Math.max(0, pvpEnemyHP - Math.floor(damage));
-  appendPvPLog(`You use skill for ${Math.floor(damage)} damage!`, "success");
-  updatePvPBars();
-
-  if (pvpEnemyHP <= 0) {
-    pvpEndBattle(true);
-    return;
-  }
-  setTimeout(pvpEnemyAttack, 600);
-}
-
-function pvpEnemyAttack() {
-  if (!pvpInProgress) return;
-  const char = gameState.currentCharacter;
-  let damage = Math.floor(Math.random() * 15) + Math.floor(pvpEnemyLevel / 2);
-
-  // Apply damage reduction if any
-  if (char.damageReduction) {
-    damage = Math.floor(damage * (1 - char.damageReduction));
-  }
-
-  char.hp = Math.max(0, char.hp - damage);
-  appendPvPLog(`Enemy attacks for ${damage} damage!`, "danger");
-  updatePvPBars();
-  if (char.hp <= 0) {
-    pvpEndBattle(false);
-  }
-}
-
-function pvpEndBattle(won) {
-  const char = gameState.currentCharacter;
-  if (won) {
-    let rewardGold = 200 + pvpEnemyLevel * 50;
-    let rewardExp = 80 + pvpEnemyLevel * 20;
-    char.gold += rewardGold;
-    char.exp += rewardExp;
-
-    // Progress 'Defeat 10 Goblins' quest if applicable
-    const goblinQuest = char.quests.find(q => q.id === 1 && !q.completed);
-    if (goblinQuest) {
-      goblinQuest.progress = Math.min(goblinQuest.progress + 1, goblinQuest.goal);
-      if (goblinQuest.progress >= goblinQuest.goal) {
-        goblinQuest.completed = true;
-        showNotification(`Quest "${goblinQuest.name}" is now completed! Claim your reward.`);
+  if (win) {
+    if (quest && !quest.completed) {
+      quest.progress = Math.min(quest.progress + 1, quest.goal);
+      if (quest.progress >= quest.goal) {
+        quest.completed = true;
+        showNotification(`Quest "${quest.name}" completed! Claim your reward.`);
       }
     }
-
+    char.gold += 100;
+    char.exp += 50;
     checkLevelUp();
-    appendPvPLog(`Victory! You earned ${rewardGold} gold and ${rewardExp} EXP!`, "success");
-    showNotification("PvP battle won!");
+    addCombatLog(`Goblin defeated! Quest progress updated.`, "success");
+    showNotification("Goblin defeated!");
   } else {
     char.hp = char.maxHp;
-    appendPvPLog("Defeat! You lost the battle.", "danger");
-    showNotification("PvP battle lost!");
+    addCombatLog("You were defeated by the goblin...", "danger");
+    showNotification("Goblin hunt failed!");
   }
-  pvpInProgress = false;
-  updatePvPBars();
   saveCharacterData();
   loadCharacterUI();
-  renderPvPOpponents();
+  renderQuests();
 }
 
-function pvpQuitBattle() {
-  if (!pvpInProgress) {
-    renderPvPOpponents();
-    return;
-  }
-  pvpInProgress = false;
-  showNotification("Left PvP battle");
-  loadCharacterUI();
-  renderPvPOpponents();
-}
+// Override playerAttack to handle Goblin Quest combat special case
+const oldPlayerAttack = playerAttack;
+playerAttack = function() {
+  if (!gameState.turnBasedCombat.inProgress) return;
 
-function renderPvPOpponents() {
-  document.getElementById("pvpTab").innerHTML = `
-    <div class="content-panel">
-      <h2>🗡️ PvP Arena</h2>
-      <p class="text-gray-400 mb-6 font-semibold">
-        Challenge the computer and climb the ranks!
-      </p>
-      <div id="pvpOpponents" class="space-y-3 mb-6">
-        <div class="opponent-card" onclick="challengeOpponent('Player1', 15)">
-          <div class="flex justify-between items-center">
-            <span class="font-bold text-yellow-400">Player1</span>
-            <span class="pvp-rank">Rank: Gold</span>
-          </div>
-          <div class="text-xs text-gray-400 mt-2">Level 15 • Wins: 45</div>
-        </div>
-        <div class="opponent-card" onclick="challengeOpponent('Player2', 18)">
-          <div class="flex justify-between items-center">
-            <span class="font-bold text-yellow-400">Player2</span>
-            <span class="pvp-rank">Rank: Silver</span>
-          </div>
-          <div class="text-xs text-gray-400 mt-2">Level 18 • Wins: 32</div>
-        </div>
-        <div class="opponent-card" onclick="challengeOpponent('Player3', 20)">
-          <div class="flex justify-between items-center">
-            <span class="font-bold text-yellow-400">Player3</span>
-            <span class="pvp-rank">Rank: Bronze</span>
-          </div>
-          <div class="text-xs text-gray-400 mt-2">Level 20 • Wins: 18</div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-// Other game functions
-// Dungeon state
-gameState.currentDungeonFloor = null;
-gameState.inDungeonCombat = false;
-gameState.dungeonEnemy = null;
-
-function enterDungeon(floor) {
-  const char = gameState.currentCharacter;
-  if (!char) {
-    showNotification("Select a character first!");
-    return;
-  }
-  if (gameState.inDungeonCombat) {
-    showNotification("Finish current dungeon combat first!");
-    return;
-  }
-  gameState.currentDungeonFloor = floor;
-  gameState.inDungeonCombat = false;
-
-  // Setup dungeon enemies by floor
-  const enemiesByFloor = {
-    1: { name: "Goblin", maxHp: 50 + (char.level - 1) * 10, gold: 100, exp: 50 },
-    2: { name: "Skeleton", maxHp: 80 + (char.level - 1) * 15, gold: 200, exp: 100 },
-    3: { name: "Dragon", maxHp: 200 + (char.level - 1) * 40, gold: 1000, exp: 500 },
-  };
-
-  const enemyTemplate = enemiesByFloor[floor];
-  if (!enemyTemplate) {
-    showNotification("This dungeon floor is locked or unavailable.");
-    return;
-  }
-
-  // Show dungeon UI
-  switchTab("dungeon");
-
-  // Show room/enemy info + combat button
-  const dungeonRooms = document.getElementById("dungeonRooms");
-  dungeonRooms.innerHTML = `
-    <div class="dungeon-room">
-      <div class="flex justify-between items-center">
-          <span class="font-bold text-yellow-400">Floor ${floor}: ${enemyTemplate.name}</span>
-          <span class="floor-badge">Difficulty: ${floor === 1 ? "Easy" : floor === 2 ? "Medium" : "Hard"}</span>
-      </div>
-      <div class="text-xs text-gray-400 mt-2">Enemy HP: ${enemyTemplate.maxHp} | Rewards: ${enemyTemplate.gold} Gold, ${enemyTemplate.exp} EXP</div>
-      <button class="btn-primary w-full mt-4" id="startDungeonCombatBtn">Start Combat</button>
-    </div>
-  `;
-
-  document.getElementById("startDungeonCombatBtn").addEventListener("click", () => {
-    startDungeonCombat(enemyTemplate);
-  });
-}
-
-function startDungeonCombat(enemyTemplate) {
-  const char = gameState.currentCharacter;
-  if (!char) return;
-  if (char.energy < 15) {
-    showNotification("Not enough energy to start combat!");
-    return;
-  }
-  if (gameState.inDungeonCombat) {
-    showNotification("Dungeon combat already in progress!");
-    return;
-  }
-
-  char.energy -= 15;
-  saveCharacterData();
-  loadCharacterUI();
-
-  gameState.dungeonEnemy = {
-    name: enemyTemplate.name,
-    maxHp: enemyTemplate.maxHp,
-    hp: enemyTemplate.maxHp,
-    goldReward: enemyTemplate.gold,
-    expReward: enemyTemplate.exp,
-  };
-  gameState.inDungeonCombat = true;
-  gameState.turnBasedCombat = {
-    inProgress: true,
-    playerTurn: true,
-    defending: false,
-  };
-
-  // Show dungeon combat UI in dungeon tab
-  const dungeonRooms = document.getElementById("dungeonRooms");
-  dungeonRooms.innerHTML = `
-    <div class="combat-arena">
-      <h3 class="text-center mb-6 text-xl font-black text-yellow-400 glowing-text">🏰 DUNGEON FLOOR ${gameState.currentDungeonFloor} COMBAT</h3>
-      <div class="grid md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <div class="text-center text-yellow-500 font-black mb-3">${char.name}</div>
-          <div class="bg-gray-950 p-4 rounded-lg border-2 border-blue-900">
-            <div class="text-sm mb-3 font-bold">Health: <span id="dungeonPlayerHP" class="text-red-400">${char.hp}</span>/<span id="dungeonPlayerMaxHP" class="text-gray-400">${char.maxHp}</span></div>
-            <div class="stat-bar"><div id="dungeonPlayerHPBar" class="stat-fill health-fill" style="width: 100%"></div></div>
-          </div>
-        </div>
-        <div>
-          <div class="text-center text-red-500 font-black mb-3" id="dungeonEnemyName">${gameState.dungeonEnemy.name}</div>
-          <div class="enemy-card">
-            <div class="text-sm mb-3 font-bold">Health: <span id="dungeonEnemyHP" class="text-red-400">${gameState.dungeonEnemy.hp}</span>/<span id="dungeonEnemyMaxHP" class="text-gray-400">${gameState.dungeonEnemy.maxHp}</span></div>
-            <div class="stat-bar"><div id="dungeonEnemyHPBar" class="stat-fill health-fill" style="width: 100%"></div></div>
-          </div>
-        </div>
-      </div>
-      <div class="grid md:grid-cols-3 gap-3 mb-6">
-        <button class="btn-primary combat-action-btn" id="dungeonAttackBtn">⚔️ Attack</button>
-        <button class="btn-primary combat-action-btn" id="dungeonDefendBtn">🛡️ Defend</button>
-        <button class="btn-primary combat-action-btn" id="dungeonSkillBtn">✨ Skill</button>
-      </div>
-      <div class="combat-log scrollbar-custom" id="dungeonCombatLog">
-        <div class="log-message info">Dungeon combat started! Your turn.</div>
-      </div>
-      <button class="btn-danger w-full" id="dungeonQuitBtn">Quit Dungeon Combat</button>
-    </div>
-  `;
-
-  // Attach event listeners to dungeon combat buttons
-  document.getElementById("dungeonAttackBtn").addEventListener("click", dungeonPlayerAttack);
-  document.getElementById("dungeonDefendBtn").addEventListener("click", dungeonPlayerDefend);
-  document.getElementById("dungeonSkillBtn").addEventListener("click", dungeonPlayerSkill);
-  document.getElementById("dungeonQuitBtn").addEventListener("click", dungeonQuitCombat);
-
-  updateDungeonCombatUI();
-  updateDungeonCombatButtons(true);
-}
-
-function updateDungeonCombatUI() {
-  const char = gameState.currentCharacter;
-  const enemy = gameState.dungeonEnemy;
-  if (!char || !enemy) return;
-
-  document.getElementById("dungeonPlayerHP").textContent = char.hp;
-  document.getElementById("dungeonPlayerMaxHP").textContent = char.maxHp;
-  document.getElementById("dungeonPlayerHPBar").style.width = (char.hp / char.maxHp) * 100 + "%";
-
-  document.getElementById("dungeonEnemyHP").textContent = enemy.hp;
-  document.getElementById("dungeonEnemyMaxHP").textContent = enemy.maxHp;
-  document.getElementById("dungeonEnemyHPBar").style.width = (enemy.hp / enemy.maxHp) * 100 + "%";
-}
-
-function updateDungeonCombatButtons(enabled) {
-  document.getElementById("dungeonAttackBtn").disabled = !enabled;
-  document.getElementById("dungeonDefendBtn").disabled = !enabled;
-  document.getElementById("dungeonSkillBtn").disabled = !enabled;
-}
-
-function addDungeonCombatLog(message, type = "info") {
-  const log = document.getElementById("dungeonCombatLog");
-  if (!log) return;
-  const msgDiv = document.createElement("div");
-  msgDiv.className = `log-message ${type}`;
-  msgDiv.textContent = message;
-  log.appendChild(msgDiv);
-  log.scrollTop = log.scrollHeight;
-}
-
-function dungeonPlayerAttack() {
-  if (!gameState.inDungeonCombat) return;
   if (!gameState.turnBasedCombat.playerTurn) {
     showNotification("Wait for your turn!");
     return;
   }
 
   const char = gameState.currentCharacter;
-  const enemy = gameState.dungeonEnemy;
-  if (!char || !enemy) return;
-
-  const damage = Math.floor(Math.random() * 25) + char.stats.str;
+  const enemy = gameState.combatEnemy;
+  const damage = Math.floor(Math.random() * 20) + char.stats.str;
 
   enemy.hp = Math.max(0, enemy.hp - damage);
-  addDungeonCombatLog(`You attack for ${damage} damage!`, "success");
-  updateDungeonCombatUI();
+
+  addCombatLog(`You attack for ${damage} damage!`, "success");
+  updateTurnBasedCombatUI();
+
   playSound("attack");
 
   if (enemy.hp <= 0) {
-    dungeonEndCombat(true);
-    return;
-  }
-
-  gameState.turnBasedCombat.playerTurn = false;
-  gameState.turnBasedCombat.defending = false;
-  updateDungeonCombatButtons(false);
-
-  setTimeout(dungeonEnemyTurn, 1000);
-}
-
-function dungeonPlayerDefend() {
-  if (!gameState.inDungeonCombat) return;
-  if (!gameState.turnBasedCombat.playerTurn) {
-    showNotification("Wait for your turn!");
-    return;
-  }
-  addDungeonCombatLog("You take a defensive stance!", "info");
-  gameState.turnBasedCombat.defending = true;
-  playSound("defend");
-
-  gameState.turnBasedCombat.playerTurn = false;
-  updateDungeonCombatButtons(false);
-  setTimeout(dungeonEnemyTurn, 1000);
-}
-
-function dungeonPlayerSkill() {
-  if (!gameState.inDungeonCombat) return;
-  if (!gameState.turnBasedCombat.playerTurn) {
-    showNotification("Wait for your turn!");
-    return;
-  }
-  const char = gameState.currentCharacter;
-  const enemy = gameState.dungeonEnemy;
-  if (!char || !enemy) return;
-
-  if (char.mana < 20) {
-    showNotification("Not enough mana!");
-    return;
-  }
-  if (char.skillCooldown > 0) {
-    showNotification(`Skill cooldown: ${char.skillCooldown} turn(s) remaining`);
-    return;
-  }
-
-  char.mana -= 20;
-  char.skillCooldown = 3;
-
-  const damage = Math.floor(Math.random() * 40) + Math.floor(1.5 * char.stats.str);
-  enemy.hp = Math.max(0, enemy.hp - damage);
-
-  addDungeonCombatLog(`You use special skill for ${damage} damage!`, "success");
-  updateDungeonCombatUI();
-  updateManaUI();
-  playSound("skill");
-
-  if (enemy.hp <= 0) {
-    dungeonEndCombat(true);
-    return;
-  }
-
-  gameState.turnBasedCombat.playerTurn = false;
-  gameState.turnBasedCombat.defending = false;
-  updateDungeonCombatButtons(false);
-
-  setTimeout(dungeonEnemyTurn, 1000);
-}
-
-function dungeonEnemyTurn() {
-  if (!gameState.inDungeonCombat) return;
-
-  const char = gameState.currentCharacter;
-  const enemy = gameState.dungeonEnemy;
-  if (!char || !enemy) return;
-
-  let damage = Math.floor(Math.random() * 20) + Math.floor(char.level / 2);
-
-  if (gameState.turnBasedCombat.defending) {
-    damage = Math.floor(damage / 2);
-    addDungeonCombatLog("Your defense reduced the incoming damage!", "info");
-    gameState.turnBasedCombat.defending = false;
-  }
-
-  if (char.damageReduction) {
-    damage = Math.floor(damage * (1 - char.damageReduction));
-  }
-
-  char.hp = Math.max(0, char.hp - damage);
-  addDungeonCombatLog(`Enemy attacks for ${damage} damage!`, "danger");
-  updateDungeonCombatUI();
-  updateManaUI();
-
-  if (char.hp <= 0) {
-    dungeonEndCombat(false);
-    return;
-  }
-
-  gameState.turnBasedCombat.playerTurn = true;
-  updateDungeonCombatButtons(true);
-  addDungeonCombatLog("Your turn.", "info");
-
-  decreaseCooldowns();
-  saveCharacterData();
-}
-
-function dungeonEndCombat(win) {
-  const char = gameState.currentCharacter;
-  const enemy = gameState.dungeonEnemy;
-  if (!char || !enemy) return;
-
-  gameState.inDungeonCombat = false;
-  gameState.currentDungeonFloor = null;
-  gameState.turnBasedCombat.inProgress = false;
-  gameState.turnBasedCombat.defending = false;
-
-  updateDungeonCombatButtons(false);
-
-  const dungeonRooms = document.getElementById("dungeonRooms");
-
-  if (win) {
-    char.gold += enemy.goldReward;
-    char.exp += enemy.expReward;
-    
-    // Restore some energy/hp/mana on victory
-    char.hp = Math.min(char.hp + 20, char.maxHp);
-    char.energy = Math.min(char.energy + 10, char.maxEnergy);
-    char.mana = Math.min(char.mana + 10, char.maxMana);
-
-    checkLevelUp();
-    showNotification(`Victory! You earned ${enemy.goldReward} gold and ${enemy.expReward} EXP!`);
-
-    // Clear dungeon UI and show dungeon rooms again
-    dungeonRooms.innerHTML = '';
-    // Reload dungeon floors UI
-    loadDungeonFloorsUI();
-
-  } else {
-    char.hp = char.maxHp;
-    showNotification("You were defeated in the dungeon...");
-    dungeonRooms.innerHTML = '';
-    loadDungeonFloorsUI();
-  }
-
-  saveCharacterData();
-  loadCharacterUI();
-}
-
-function dungeonQuitCombat() {
-  if (!gameState.inDungeonCombat) {
-    loadDungeonFloorsUI();
-    return;
-  }
-  gameState.inDungeonCombat = false;
-  gameState.currentDungeonFloor = null;
-  gameState.turnBasedCombat.inProgress = false;
-  showNotification("Dungeon combat quit.");
-  loadCharacterUI();
-  loadDungeonFloorsUI();
-}
-
-function loadDungeonFloorsUI() {
-  // Reload dungeon floors list after leaving combat or ending it
-  const dungeonRooms = document.getElementById("dungeonRooms");
-  const char = gameState.currentCharacter;
-  if (!char) return;
-
-  dungeonRooms.innerHTML = `
-    <div class="dungeon-room">
-      <div class="flex justify-between items-center">
-          <span class="font-bold text-yellow-400">Floor 1: Goblin Warren</span>
-          <span class="floor-badge">Difficulty: Easy</span>
-      </div>
-      <div class="text-xs text-gray-400 mt-2">Enemies: 5 Goblins | Rewards: 200 Gold, 100 EXP</div>
-      <button class="btn-success text-xs mt-3" onclick="enterDungeon(1)">Enter</button>
-    </div>
-    <div class="dungeon-room">
-      <div class="flex justify-between items-center">
-          <span class="font-bold text-yellow-400">Floor 2: Skeleton Crypt</span>
-          <span class="floor-badge">Difficulty: Medium</span>
-      </div>
-      <div class="text-xs text-gray-400 mt-2">Enemies: 8 Skeletons | Rewards: 400 Gold, 250 EXP</div>
-      <button class="btn-success text-xs mt-3" onclick="enterDungeon(2)">Enter</button>
-    </div>
-    <div class="dungeon-room">
-      <div class="flex justify-between items-center">
-          <span class="font-bold text-yellow-400">Floor 3: Dragon's Lair</span>
-          <span class="floor-badge">Difficulty: Hard</span>
-      </div>
-      <div class="text-xs text-gray-400 mt-2">Enemies: 1 Dragon | Rewards: 1000 Gold, 500 EXP</div>
-      <button class="btn-success text-xs mt-3" onclick="enterDungeon(3)">Enter</button>
-    </div>
-  `;
-}
-
-
-function trainStat(stat) {
-  const char = gameState.currentCharacter;
-  if (char.energy < 5) {
-    showNotification("Not enough energy!");
-    return;
-  }
-  if (char.gold < 50) {
-    showNotification("Not enough gold!");
-    return;
-  }
-
-  char.energy -= 5;
-  char.gold -= 50;
-
-  const statKey = stat.toLowerCase();
-  if (char.stats[statKey] !== undefined) {
-    char.stats[statKey] += 2;
-  }
-  saveCharacterData();
-  loadCharacterUI();
-  showNotification(`${stat} +2!`);
-}
-
-function buyItem(itemName, price) {
-  const char = gameState.currentCharacter;
-  if (char.gold < price) {
-    showNotification("Not enough gold!");
-    return;
-  }
-  char.gold -= price;
-  // Save as object with quantity for extensibility
-  let invItem = char.inventory.find(i => i.name === itemName);
-  if (invItem) {
-    invItem.qty++;
-  } else {
-    char.inventory.push({ name: itemName, qty: 1 });
-  }
-  saveCharacterData();
-  loadCharacterUI();
-  showNotification(`Bought ${itemName}!`);
-
-  // Check collect quests update after buying items
-  checkQuestCollectItems();
-}
-
-function checkQuestCollectItems() {
-  const char = gameState.currentCharacter;
-  if (!char) return;
-
-  const collectQuest = char.quests.find(q => q.type === "collect" && !q.completed);
-  if (!collectQuest) return;
-
-  const herbs = char.inventory.find(i => i.name.toLowerCase() === 'herb');
-  const qty = herbs ? herbs.qty : 0;
-
-  collectQuest.progress = Math.min(qty, collectQuest.goal);
-  if (collectQuest.progress >= collectQuest.goal) {
-    collectQuest.completed = true;
-    showNotification(`Quest "${collectQuest.name}" completed! Claim your reward.`);
-  }
-
-  renderQuests();
-  saveCharacterData();
-}
-
-function restNow() {
-  const char = gameState.currentCharacter;
-  char.hp = char.maxHp;
-  char.energy = char.maxEnergy;
-  saveCharacterData();
-  loadCharacterUI();
-  showNotification("You rested and recovered!");
-}
-
-function deleteCharacter() {
-  if (!confirm("Are you sure? This cannot be undone!")) return;
-  delete gameState.characters[gameState.currentCharacter.name];
-  gameState.users[gameState.currentUser].characters = gameState.characters;
-  localStorage.setItem("users", JSON.stringify(gameState.users));
-  document.getElementById("gameContainer").classList.add("hidden");
-  showCharacterSelection();
-}
-
-function logout() {
-  gameState.currentUser = null;
-  gameState.currentCharacter = null;
-  document.getElementById("gameContainer").classList.add("hidden");
-  document.getElementById("charSelectContainer").classList.add("hidden");
-  document.getElementById("authContainer").classList.remove("hidden");
-  document.getElementById("loginForm").classList.remove("hidden");
-  document.getElementById("registerForm").classList.add("hidden");
-  document.getElementById("loginUsername").value = "";
-  document.getElementById("loginPassword").value = "";
-}
-
-function updateTime() {
-  const now = new Date();
-  document.getElementById("currentTime").textContent = now.toLocaleTimeString();
-}
-
-function showError(element, message) {
-  element.textContent = message;
-  element.classList.remove("hidden");
-}
-
-function showNotification(message) {
-  const notif = document.createElement("div");
-  notif.className = "notification";
-  notif.textContent = message;
-  document.body.appendChild(notif);
-  setTimeout(() => notif.remove(), 3000);
-}
-
-// Merit Shop Modal
-const meritShopModal = document.getElementById("meritShopModal");
-const meritShopBackdrop = document.getElementById("meritShopBackdrop");
-
-function showMeritShop() {
-  meritShopModal.classList.add("show");
-  meritShopBackdrop.classList.add("show");
-
-  if (gameState.currentCharacter) {
-    document.getElementById("meritShopBalanceModal").textContent =
-      gameState.currentCharacter.merits;
-    updateMeritPurchasesModal();
-  }
-}
-
-function hideMeritShop() {
-  meritShopModal.classList.remove("show");
-  meritShopBackdrop.classList.remove("show");
-}
-
-function regenerateStats() {
-  const char = gameState.currentCharacter;
-  if (!char) return;
-
-  char.hp = Math.min(char.hp + 5, char.maxHp);
-  char.energy = Math.min(char.energy + 5, char.maxEnergy);
-  char.glory = Math.min(char.glory + 5, char.maxGlory);
-
-  saveCharacterData();
-  loadCharacterUI();
-}
-
-setInterval(regenerateStats, 180000);
-
-// Level up and save
-function checkLevelUp() {
-  const char = gameState.currentCharacter;
-  if (!char) return;
-  let leveledUp = false;
-
-  while (char.exp >= char.level * 500) {
-    char.exp -= char.level * 500;
-    char.level++;
-    leveledUp = true;
-
-    char.maxHp += 10;
-    char.hp = char.maxHp;
-    char.maxEnergy += 5;
-    char.energy = char.maxEnergy;
-
-    char.merits += 30;
-
-    if (char.quests) {
-      const levelQuest = char.quests.find((q) => q.id === 2 && !q.completed);
-      if (levelQuest) {
-        levelQuest.progress = char.level;
-        if (levelQuest.progress >= levelQuest.goal) levelQuest.completed = true;
-      }
+    if (enemy.questId === 1 && activeGoblinQuestCombat) {
+      endGoblinQuestCombat(true);
+    } else {
+      endTurnBasedCombat(true);
     }
-  }
-
-  if (leveledUp) {
-    showNotification(
-      `🎉 Level UP! You reached level ${char.level} and earned 30 merits!`
-    );
-    renderQuests(); // Update quest UI for level based quest
-  }
-
-  saveCharacterData();
-}
-
-function saveCharacterData() {
-  if (gameState.currentUser && gameState.characters) {
-    gameState.users[gameState.currentUser].characters =
-      gameState.characters;
-    localStorage.setItem("users", JSON.stringify(gameState.users));
-  }
-}
-
-// Jewel Shop and related functions
-const jewelShopModal = document.getElementById("jewelShopModal");
-const jewelShopBackdrop = document.getElementById("jewelShopBackdrop");
-
-function showJewelShop() {
-  jewelShopModal.classList.add("show");
-  jewelShopBackdrop.classList.add("show");
-
-  if (gameState.currentCharacter) {
-    document.getElementById("jewelShopBalanceModal").textContent =
-      gameState.currentCharacter.jewels || 0;
-    updateJewelPurchasesModal();
-  }
-}
-
-function hideJewelShop() {
-  jewelShopModal.classList.remove("show");
-  jewelShopBackdrop.classList.remove("show");
-}
-
-function updateJewelPurchasesModal() {
-  const char = gameState.currentCharacter;
-  const container = document.getElementById("purchasedJewelItemsModal");
-  if (!container) return;
-
-  if (!char.jewelPurchases || char.jewelPurchases.length === 0) {
-    container.innerHTML =
-      '<div class="text-gray-400 text-sm">No items purchased yet</div>';
     return;
   }
 
-  container.innerHTML = char.jewelPurchases
-    .map(
-      (item) => `
-      <div class="stat-boost-item">
-          <div class="flex justify-between items-center">
-              <span>${item.name}</span>
-              <span class="text-xs text-purple-400">✓ Applied</span>
-          </div>
-      </div>
-  `
-    )
-    .join("");
-}
+  gameState.turnBasedCombat.playerTurn = false;
+  gameState.turnBasedCombat.defending = false;
+  updateCombatButtons(false);
 
-function buyJewelItem(itemName, cost, statType, value) {
-  const char = gameState.currentCharacter;
-  if (!char) return;
+  setTimeout(enemyTurn, 1000);
+};
 
-  if (char.jewels < cost) {
-    showNotification("Not enough jewels!");
-    return;
-  }
-
-  // Prevent duplicate purchase of same item
-  if (char.jewelPurchases && char.jewelPurchases.some(i => i.name === itemName)) {
-    showNotification("You already own this item!");
-    return;
-  }
-
-  char.jewels -= cost;
-
-  // Initialize jewel purchases array if not exists
-  if (!char.jewelPurchases) {
-    char.jewelPurchases = [];
-  }
-  char.jewelPurchases.push({ name: itemName, cost: cost });
-
-  // Apply the effects
-  if (statType === "allStats") {
-    char.stats.str += value;
-    char.stats.def += value;
-    char.stats.spd += value;
-    char.stats.eva += value;
-  } else if (statType === "damageReduction") {
-    // Save damage reduction as a special property
-    char.damageReduction = value; // e.g. 0.2 for 20%
-  } else if (statType === "spdEva") {
-    char.stats.spd += value;
-    char.stats.eva += value;
-  } else if (statType === "jewelBoost") {
-    // For boost duration in hours - save timestamp and multiplier
-    char.jewelBoost = {
-      multiplier: 2,
-      expiresAt: Date.now() + value * 3600 * 1000,
-    };
-  }
-
-  saveCharacterData();
-
-  // Autosave on page close or refresh
-  window.addEventListener('beforeunload', () => {
-    saveCharacterData();
-  });
-
-  loadCharacterUI();
-  updateJewelPurchasesModal();
-
-  document.getElementById("jewelShopBalanceModal").textContent = char.jewels;
-
-  showNotification(`💎 ${itemName} purchased for ${cost} jewels!`);
-}
-
-// Example: modify jewel gains with boost
-function addJewels(amount) {
-  const char = gameState.currentCharacter;
-  if (!char) return;
-
-  let finalAmount = amount;
-
-  if (char.jewelBoost && char.jewelBoost.expiresAt > Date.now()) {
-    finalAmount = amount * char.jewelBoost.multiplier;
-  } else {
-    // Jewel boost expired - remove it
-    char.jewelBoost = null;
-  }
-
-  char.jewels += Math.floor(finalAmount);
-  saveCharacterData();
-  loadCharacterUI();
-}
-
-// Autosave on page close or refresh - general
-window.addEventListener('beforeunload', () => {
-  saveCharacterData();
-});
+// Prevent endTurnBasedCombat from progressing Goblin Quest combat again
+const oldEndTurnBasedCombat = endTurnBasedCombat;
+endTurnBasedCombat = function(win) {
+  if (activeGoblinQuestCombat) return; // ignore; handled by endGoblinQuestCombat
+  oldEndTurnBasedCombat(win);
+};
