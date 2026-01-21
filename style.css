@@ -4,7 +4,10 @@
     padding: 0;
     box-sizing: border-box;
 }
-
+*:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
 /* Body */
 body {
     background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0d0d0d 100%);
