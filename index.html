@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Haven - Fantasy MMORPG</title>
+    <title>Haven - Shadowrealms Fantasy MMORPG</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="p-4">
     <!-- Auth Container -->
@@ -378,7 +378,18 @@
                 <div class="content-panel">
                     <h2>📜 Quests</h2>
                     <p class="text-gray-400 mb-6 font-semibold">Complete quests to earn rewards!</p>
-                    <div id="questsList" class="space-y-3"></div>
+                    <div id="questsList" class="space-y-3">
+                        <div class="quest-card">
+                            <div class="font-bold text-yellow-400">Defeat 10 Goblins</div>
+                            <div class="text-xs text-gray-400 mt-2">Progress: 0/10</div>
+                            <div class="reward-badge mt-3">Reward: 500 Gold + 200 EXP</div>
+                        </div>
+                        <div class="quest-card">
+                            <div class="font-bold text-yellow-400">Reach Level 10</div>
+                            <div class="text-xs text-gray-400 mt-2">Progress: 1/10</div>
+                            <div class="reward-badge mt-3">Reward: 1000 Gold + 500 EXP</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -442,145 +453,145 @@
     </div>
 </div>
 
-<!-- Merit Shop Modal -->
-<div id="meritShopBackdrop"></div>
-<div id="meritShopModal">
-    <button class="btn-danger mb-4" onclick="hideMeritShop()">Close</button>
-    <h2>💚 Merit Shop</h2>
-    <div class="flex justify-between items-center mb-6">
-        <p class="text-gray-400 font-semibold">Spend your merits on powerful upgrades and permanent boosts!</p>
-        <div class="text-2xl font-black text-green-400">💚 <span id="meritShopBalanceModal">50</span></div>
+    <!-- Merit Shop Modal -->
+    <div id="meritShopBackdrop"></div>
+    <div id="meritShopModal">
+        <button class="btn-danger mb-4" onclick="hideMeritShop()">Close</button>
+        <h2>💚 Merit Shop</h2>
+        <div class="flex justify-between items-center mb-6">
+            <p class="text-gray-400 font-semibold">Spend your merits on powerful upgrades and permanent boosts!</p>
+            <div class="text-2xl font-black text-green-400">💚 <span id="meritShopBalanceModal">50</span></div>
+        </div>
+
+        <!-- Stat Boosts Section -->
+        <h3 class="text-yellow-400 font-bold text-lg mb-4">⚡ Permanent Stat Boosts</h3>
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">💪 Strength Boost</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +3 STR</div>
+                    </div>
+                    <div class="merit-cost">20 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Strength Boost', 20, 'str', 3)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">🛡️ Defense Boost</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +3 DEF</div>
+                    </div>
+                    <div class="merit-cost">20 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Defense Boost', 20, 'def', 3)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">⚡ Speed Boost</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +3 SPD</div>
+                    </div>
+                    <div class="merit-cost">20 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Speed Boost', 20, 'spd', 3)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">🎯 Evasion Boost</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +3 EVA</div>
+                    </div>
+                    <div class="merit-cost">20 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Evasion Boost', 20, 'eva', 3)">Purchase</button>
+            </div>
+        </div>
+
+        <!-- Health & Energy Boosts -->
+        <h3 class="text-yellow-400 font-bold text-lg mb-4">❤️ Health & Energy Boosts</h3>
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">❤️ Max Health Increase</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +20 Max HP</div>
+                    </div>
+                    <div class="merit-cost">25 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Health Increase', 25, 'maxHp', 20)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">⚡ Max Energy Increase</div>
+                        <div class="text-xs text-gray-400 mt-1">Permanently +20 Max Energy</div>
+                    </div>
+                    <div class="merit-cost">25 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Energy Increase', 25, 'maxEnergy', 20)">Purchase</button>
+            </div>
+        </div>
+
+        <!-- Special Items -->
+        <h3 class="text-yellow-400 font-bold text-lg mb-4">✨ Special Items</h3>
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">💎 Premium Jewel</div>
+                        <div class="text-xs text-gray-400 mt-1">Gain 1 Premium Jewel</div>
+                    </div>
+                    <div class="merit-cost">15 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Premium Jewel', 15, 'jewels', 1)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">🌟 Experience Multiplier</div>
+                        <div class="text-xs text-gray-400 mt-1">+25% EXP for 1 hour</div>
+                    </div>
+                    <div class="merit-cost">30 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('EXP Multiplier', 30, 'expBoost', 1)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">💰 Gold Multiplier</div>
+                        <div class="text-xs text-gray-400 mt-1">+50% Gold for 1 hour</div>
+                    </div>
+                    <div class="merit-cost">35 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Gold Multiplier', 35, 'goldBoost', 1)">Purchase</button>
+            </div>
+
+            <div class="merit-shop-item">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-green-300">⚔️ Combat Power</div>
+                        <div class="text-xs text-gray-400 mt-1">+2 All Stats for 1 hour</div>
+                    </div>
+                    <div class="merit-cost">40 Merits</div>
+                </div>
+                <button class="btn-success w-full text-sm" onclick="buyMeritItem('Combat Power', 40, 'combatPower', 1)">Purchase</button>
+            </div>
+        </div>
+
+        <!-- Purchased Items -->
+        <h3 class="text-yellow-400 font-bold text-lg mb-4">📦 Your Purchases</h3>
+        <div id="purchasedItemsModal" class="bg-gray-950 border-2 border-gray-800 rounded-lg p-4">
+            <div class="text-gray-400 text-sm">No items purchased yet</div>
+        </div>
     </div>
-
-    <!-- Stat Boosts Section -->
-    <h3 class="text-yellow-400 font-bold text-lg mb-4">⚡ Permanent Stat Boosts</h3>
-    <div class="grid md:grid-cols-2 gap-4 mb-8">
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">💪 Strength Boost</div>
-                    <div class="text-xs text-gray-400 mt-1">Permanently +3 STR</div>
-                </div>
-                <div class="merit-cost">20 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Strength Boost', 20, 'str', 3)">Purchase</button>
-        </div>
-
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">🛡️ Defense Boost</div>
-                    <div class="text-xs text-gray-400 mt-1">Permanently +3 DEF</div>
-                </div>
-                <div class="merit-cost">20 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Defense Boost', 20, 'def', 3)">Purchase</button>
-        </div>
-
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">⚡ Speed Boost</div>
-                    <div class="text-xs text-gray-400 mt-1">Permanently +3 SPD</div>
-                </div>
-                <div class="merit-cost">20 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Speed Boost', 20, 'spd', 3)">Purchase</button>
-        </div>
-
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">🎯 Evasion Boost</div>
-                    <div class="text-xs text-gray-400 mt-1">Permanently +3 EVA</div>
-                </div>
-                <div class="merit-cost">20 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Evasion Boost', 20, 'eva', 3)">Purchase</button>
-        </div>
-    </div>
-
-    <!-- Health & Energy Boosts -->
-    <h3 class="text-yellow-400 font-bold text-lg mb-4">❤️ Health & Energy Boosts</h3>
-    <div class="grid md:grid-cols-2 gap-4 mb-8">
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">❤️ Max Health Increase</div>
-                    <div class="text-xs text-gray-400 mt-1">Permanently +20 Max HP</div>
-                </div>
-                <div class="merit-cost">25 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Health Increase', 25, 'maxHp', 20)">Purchase</button>
-        </div>
-
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">⚡ Max Energy Increase</div>
-                    <div class="text-xs text-gray-400 mt-1">Permanently +20 Max Energy</div>
-                </div>
-                <div class="merit-cost">25 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Energy Increase', 25, 'maxEnergy', 20)">Purchase</button>
-        </div>
-    </div>
-
-    <!-- Special Items -->
-    <h3 class="text-yellow-400 font-bold text-lg mb-4">✨ Special Items</h3>
-    <div class="grid md:grid-cols-2 gap-4 mb-8">
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">💎 Premium Jewel</div>
-                    <div class="text-xs text-gray-400 mt-1">Gain 1 Premium Jewel</div>
-                </div>
-                <div class="merit-cost">15 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Premium Jewel', 15, 'jewels', 1)">Purchase</button>
-        </div>
-
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">🌟 Experience Multiplier</div>
-                    <div class="text-xs text-gray-400 mt-1">+25% EXP for 1 hour</div>
-                </div>
-                <div class="merit-cost">30 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('EXP Multiplier', 30, 'expBoost', 1)">Purchase</button>
-        </div>
-
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">💰 Gold Multiplier</div>
-                    <div class="text-xs text-gray-400 mt-1">+50% Gold for 1 hour</div>
-                </div>
-                <div class="merit-cost">35 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Gold Multiplier', 35, 'goldBoost', 1)">Purchase</button>
-        </div>
-
-        <div class="merit-shop-item">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    <div class="font-bold text-green-300">⚔️ Combat Power</div>
-                    <div class="text-xs text-gray-400 mt-1">+2 All Stats for 1 hour</div>
-                </div>
-                <div class="merit-cost">40 Merits</div>
-            </div>
-            <button class="btn-success w-full text-sm" onclick="buyMeritItem('Combat Power', 40, 'combatPower', 1)">Purchase</button>
-        </div>
-    </div>
-
-    <!-- Purchased Items -->
-    <h3 class="text-yellow-400 font-bold text-lg mb-4">📦 Your Purchases</h3>
-    <div id="purchasedItemsModal" class="bg-gray-950 border-2 border-gray-800 rounded-lg p-4">
-        <div class="text-gray-400 text-sm">No items purchased yet</div>
-    </div>
-</div>
-<!-- Jewel Shop Modal -->
+    <!-- Jewel Shop Modal -->
 <div id="jewelShopBackdrop"></div>
 <div id="jewelShopModal">
     <button class="btn-danger mb-4" onclick="hideJewelShop()">Close</button>
@@ -642,6 +653,6 @@
         <div class="text-gray-400 text-sm">No items purchased yet</div>
     </div>
 </div>
- <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
