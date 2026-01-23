@@ -1,4 +1,3 @@
-
 // Game State
 const gameState = {
   currentUser: null,
@@ -29,12 +28,20 @@ const sounds = {
   defend: new Audio('defend.mp3'),
   skill: new Audio('skill.mp3'),
 };
+for (const key in sounds) {
+  sounds[key].addEventListener('error', () => {
+    // Ignore missing sound files gracefully
+    sounds[key] = null;
+  });
+}
 
 function playSound(action) {
   const sound = sounds[action];
   if (sound) {
     sound.currentTime = 0;
-    sound.play();
+    sound.play().catch(() => {
+      // Ignore playback error due to browser restrictions
+    });
   }
 }
 
@@ -65,9 +72,12 @@ function setupEventListeners() {
   });
 
   // Attach combat action buttons listeners
-  document.getElementById("attackBtn").addEventListener("click", playerAttack);
+  document.getElementById("attackBtn").addEventListener("click", () => playerAttack());
   document.getElementById("defendBtn").addEventListener("click", playerDefend);
   document.getElementById("skillBtn").addEventListener("click", playerSkill);
+
+  // Cancel quest button can only be attached dynamically because multiple quests
+  // So attach at rendering quests
 }
 
 // Authentication functions
@@ -159,7 +169,7 @@ function refreshCharacterList() {
 }
 
 function openCreateChar() {
-  const charName = prompt("Enter character name:");
+  const charName = prompt("Enter character name:")?.trim();
   if (!charName) return;
 
   if (gameState.characters[charName]) {
@@ -167,9 +177,9 @@ function openCreateChar() {
     return;
   }
 
-  const race = prompt("Choose race (Human/Elf/Dwarf):") || "Human";
-  const charClass = prompt("Choose class (Warrior/Mage/Rogue):") || "Warrior";
-  const appearance = prompt("Choose hair color (e.g. brown, black, *****):") || "brown";
+  const race = prompt("Choose race (Human/Elf/Dwarf):", "Human")?.trim() || "Human";
+  const charClass = prompt("Choose class (Warrior/Mage/Rogue):", "Warrior")?.trim() || "Warrior";
+  const appearance = prompt("Choose hair color (e.g. brown, black, blonde):", "brown")?.trim() || "brown";
 
   gameState.characters[charName] = {
     name: charName,
@@ -271,7 +281,7 @@ function loadCharacterUI() {
   document.getElementById("statEva").textContent = char.stats.eva;
   document.getElementById("memberSince").textContent = char.createdAt;
 
-  // Update mana display and bar
+  // Update mana display and bar (if exists in UI)
   const manaElem = document.getElementById("playerMana");
   const maxManaElem = document.getElementById("maxMana");
   const manaBar = document.getElementById("manaBar");
@@ -281,7 +291,7 @@ function loadCharacterUI() {
     manaBar.style.width = ((char.mana || 0) / (char.maxMana || 1)) * 100 + "%";
   }
 
-  // Update training tab stats display with actual values
+  // Update training tab buttons text with current stats
   const trainingTab = document.getElementById("trainingTab");
   if (trainingTab) {
     const buttons = trainingTab.querySelectorAll("button");
@@ -391,6 +401,9 @@ function buyMeritItem(itemName, cost, statType, value) {
     char.energy = char.maxEnergy;
   } else if (statType === "jewels") {
     char.jewels += value;
+  } else if(statType === "expBoost" || statType === "goldBoost" || statType === "combatPower" || statType === "jewelBoost") {
+    // Placeholder: you can implement timed boosts here
+    showNotification(`${itemName} boost activated! (Effect not implemented)`);
   }
 
   // Track purchase
@@ -422,12 +435,20 @@ function updateBars() {
 function switchTab(tabName) {
   document.querySelectorAll(".tab-content").forEach((tab) => tab.classList.add("hidden"));
   document.querySelectorAll(".tab-button").forEach((btn) => btn.classList.remove("active"));
-  document.getElementById(tabName + "Tab").classList.remove("hidden");
+  const tab = document.getElementById(tabName + "Tab");
+  if (tab) tab.classList.remove("hidden");
   const btn = document.querySelector(`[data-tab="${tabName}"]`);
   if (btn) btn.classList.add("active");
 
   if (tabName === "pvp") renderPvPOpponents();
   if (tabName === "quests") renderQuests();
+}
+
+// Save character data to localStorage
+function saveCharacterData() {
+  if (!gameState.currentUser || !gameState.characters) return;
+  gameState.users[gameState.currentUser].characters = gameState.characters;
+  localStorage.setItem("users", JSON.stringify(gameState.users));
 }
 
 // ----- TURN-BASED COMBAT SYSTEM -----
@@ -540,7 +561,7 @@ function endTurnBasedCombat(win) {
 }
 
 // Player action: Attack
-function playerAttack() {
+let basePlayerAttack = function () {
   if (!gameState.turnBasedCombat.inProgress) return;
 
   if (!gameState.turnBasedCombat.playerTurn) {
@@ -573,7 +594,9 @@ function playerAttack() {
 
   // Enemy's turn, delay slightly for UX
   setTimeout(enemyTurn, 1000);
-}
+};
+
+let playerAttack = basePlayerAttack; // Use this by default
 
 // Player action: Defend
 function playerDefend() {
@@ -711,6 +734,7 @@ function enemyTurn() {
 // Add one line in the combat log area with style
 function addCombatLog(message, type = "info") {
   const log = document.getElementById("combatLog");
+  if (!log) return;
   const msgDiv = document.createElement("div");
   msgDiv.className = `log-message ${type}`;
   msgDiv.textContent = message;
@@ -871,7 +895,45 @@ function claimQuestReward(questId) {
   showNotification(`Quest "${quest.name}" reward claimed! +${quest.rewardGold} Gold, +${quest.rewardExp} EXP`);
 }
 
-// PvP battle and dungeon functions remain unchanged for brevity...
+// Check for level up and handle it
+function checkLevelUp() {
+  const char = gameState.currentCharacter;
+  if (!char) return;
+
+  const expNeeded = char.level * 500;
+  if (char.exp >= expNeeded) {
+    char.exp -= expNeeded;
+    char.level++;
+    char.maxHp += 20;
+    char.hp = char.maxHp;
+    char.maxEnergy += 15;
+    char.energy = char.maxEnergy;
+    char.stats.str += 2;
+    char.stats.def += 2;
+    char.stats.spd += 1;
+    char.stats.eva += 1;
+    showNotification(`🎉 Level Up! You reached level ${char.level}!`);
+  }
+  saveCharacterData();
+}
+
+// Show error message in auth forms
+function showError(element, message) {
+  if (!element) return;
+  element.textContent = message;
+  element.classList.remove("hidden");
+}
+
+// General notification popup, simple implementation
+function showNotification(message) {
+  let notification = document.createElement("div");
+  notification.className = "notification";
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  setTimeout(() => {
+    notification.remove();
+  }, 3500);
+}
 
 // --- INTEGRATED INTERACTIVE "Defeat 10 Goblins" QUEST ---
 
@@ -938,7 +1000,7 @@ function endGoblinQuestCombat(win) {
     char.gold += 100;
     char.exp += 50;
     checkLevelUp();
-    addCombatLog(`Goblin defeated! Quest progress updated.`, "success");
+    addCombatLog("Goblin defeated! Quest progress updated.", "success");
     showNotification("Goblin defeated!");
   } else {
     char.hp = char.maxHp;
@@ -951,7 +1013,6 @@ function endGoblinQuestCombat(win) {
 }
 
 // Override playerAttack to handle Goblin Quest combat special case
-const oldPlayerAttack = playerAttack;
 playerAttack = function() {
   if (!gameState.turnBasedCombat.inProgress) return;
 
@@ -988,8 +1049,17 @@ playerAttack = function() {
 };
 
 // Prevent endTurnBasedCombat from progressing Goblin Quest combat again
-const oldEndTurnBasedCombat = endTurnBasedCombat;
+const originalEndTurnBasedCombat = endTurnBasedCombat;
 endTurnBasedCombat = function(win) {
   if (activeGoblinQuestCombat) return; // ignore; handled by endGoblinQuestCombat
-  oldEndTurnBasedCombat(win);
+  originalEndTurnBasedCombat(win);
 };
+
+// Helper: updateClock
+function updateTime() {
+  const now = new Date();
+  const timeString = now.toLocaleTimeString();
+  const timeElem = document.getElementById("currentTime");
+  if (timeElem) timeElem.textContent = timeString;
+}
+
